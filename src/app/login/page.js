@@ -1,95 +1,91 @@
 "use client";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { motion } from "framer-motion";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
 
-  // 🔥 EMAIL LOGIN (OTP)
-  const handleEmailLogin = async () => {
+  const login = async () => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
     });
 
-    if (error) {
-      alert(error.message);
-    } else {
-      alert("Check your email for login link 📩");
-    }
+    if (error) alert(error.message);
+    else alert("Check your email 📩");
   };
 
-  // 🔥 GOOGLE LOGIN
-  const handleGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-    });
+  const googleLogin = async () => {
+    await supabase.auth.signInWithOAuth({ provider: "google" });
   };
 
-  // 🔥 FACEBOOK LOGIN
-  const handleFacebook = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "facebook",
-    });
+  const facebookLogin = async () => {
+    await supabase.auth.signInWithOAuth({ provider: "facebook" });
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-white to-blue-200">
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
 
-      {/* 🔥 GLASS CONTAINER */}
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        whileHover={{ scale: 1.02 }}
-        transition={{ duration: 0.4 }}
-        className="w-[350px] p-6 rounded-2xl backdrop-blur-xl bg-white/40 border border-white/30 shadow-[0_10px_40px_rgba(0,0,0,0.2)]"
-      >
+      {/* 🌄 BACKGROUND */}
+      <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1501785888041-af3ef285b470')] bg-cover bg-center"></div>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
 
-        <h2 className="text-xl font-bold text-center mb-4">
-          Welcome to Glassify
+      {/* 🔥 GLASS CARD */}
+      <div className="relative w-[350px] p-6 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+
+        {/* TITLE */}
+        <h2 className="text-center text-xl font-semibold text-white mb-6">
+          Login
         </h2>
 
         {/* EMAIL INPUT */}
         <input
-          placeholder="Enter your email"
+          placeholder="Enter Email"
           value={email}
           onChange={(e)=>setEmail(e.target.value)}
-          className="w-full p-2 rounded bg-white/60 border border-white/40 mb-3 outline-none"
+          className="w-full mb-4 p-3 rounded-full bg-white/20 text-white placeholder-white/70 outline-none border border-white/30 focus:ring-2 focus:ring-blue-400 transition"
         />
 
-        {/* EMAIL BUTTON */}
+        {/* LOGIN BUTTON */}
         <button
-          onClick={handleEmailLogin}
-          className="w-full py-2 mb-3 rounded bg-blue-500 text-white hover:bg-blue-600 transition"
+          onClick={login}
+          className="w-full py-2 rounded-full bg-white text-black font-medium hover:bg-gray-200 transition"
         >
-          Continue with Email
+          Continue
         </button>
 
-        <div className="text-center text-sm mb-2 text-gray-600">
-          OR
-        </div>
-
-        {/* GOOGLE */}
-        <button
-          onClick={handleGoogle}
-          className="w-full py-2 mb-2 rounded bg-white border hover:bg-gray-100 transition"
-        >
-          Continue with Google
-        </button>
-
-        {/* FACEBOOK */}
-        <button
-          onClick={handleFacebook}
-          className="w-full py-2 rounded bg-blue-700 text-white hover:bg-blue-800 transition"
-        >
-          Continue with Facebook
-        </button>
-
-        <p className="text-xs text-center mt-4 text-gray-500">
-          Secure login powered by Supabase
+        {/* DIVIDER */}
+        <p className="text-center text-white/70 text-sm my-4">
+          Don’t have an account?
         </p>
 
-      </motion.div>
+        {/* SOCIAL LOGIN */}
+        <div className="flex justify-center gap-4">
+
+          {/* GOOGLE */}
+          <button
+            onClick={googleLogin}
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition border border-white/30"
+          >
+            <img
+              src="https://cdn-icons-png.flaticon.com/512/281/281764.png"
+              className="w-5 h-5"
+            />
+          </button>
+
+          {/* FACEBOOK */}
+          <button
+            onClick={facebookLogin}
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition border border-white/30"
+          >
+            <img
+              src="https://cdn-icons-png.flaticon.com/512/733/733547.png"
+              className="w-5 h-5"
+            />
+          </button>
+
+        </div>
+
+      </div>
     </div>
   );
 }
