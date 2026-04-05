@@ -558,33 +558,28 @@ function ProfilePage() {
             className="w-full p-2 border rounded"
           />
 
-          <Button
-            className="w-full"
-            disabled={balance < 100}
-            onClick={() => {
-              const amount = Number(document.getElementById("withdrawAmount").value);
+         <Button
+  onClick={async () => {  // ✅ MAKE FUNCTION ASYNC
 
-              if (!amount || amount <= 0) {
-                alert("Enter valid amount");
-                return;
-              }
+    const amount = Number(document.getElementById("withdrawAmount").value);
 
-              if (amount > balance) {
-                alert("Insufficient balance");
-                return;
-              }
-await supabase.from("withdrawals").insert([
-  {
-    user_email: profile.email,
-    amount: amount,
-    status: "pending"
-  }
-]);
+    if (!amount || amount <= 0) {
+      alert("Enter valid amount");
+      return;
+    }
 
-alert("Withdrawal Requested ✅");
-             
-            }}
-          >
+    await supabase.from("withdrawals").insert([
+      {
+        user_email: profile.email,
+        amount: amount,
+        status: "pending"
+      }
+    ]);
+
+    alert("Withdrawal Requested ✅");
+  }}
+>
+          
             Withdraw
           </Button>
 
