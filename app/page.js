@@ -37,7 +37,7 @@ export default function GlassifyApp() {
           <Button onClick={() => setPage("dashboard")}>Dashboard</Button>
           <Button onClick={() => setPage("tasks")}>Tasks</Button>
           <Button onClick={() => setPage("profile")}>Profile</Button>
-<Button onClick={() => setPage("transactions")}>Transactions</Button>
+          <Button onClick={() => setPage("transactions")}>Transactions</Button>
           <Button 
             onClick={() => setDarkMode(!darkMode)}
             className={`${darkMode ? "bg-red-500 text-white" : "bg-black text-white"}`}
@@ -50,8 +50,8 @@ export default function GlassifyApp() {
       {page === "dashboard" && <Dashboard />}
       {page === "tasks" && <TasksPage setChatOpen={setChatOpen} setSelectedTask={setSelectedTask} />}
       {page === "profile" && <ProfilePage />}
-{page === "transactions" && <TransactionsPage />}
-      {/* ✅ FLOATING + SHADOW FIXED */}
+      {page === "transactions" && <TransactionsPage />}
+
       <motion.div
         className="fixed bottom-6 right-6"
         animate={{ y: [0, -10, 0] }}
@@ -87,20 +87,16 @@ function Dashboard() {
   }, []);
 
   const approved = submissions.filter(s => s.status === "approved");
-
   const total = approved.reduce((acc, s) => acc + (s.task?.reward || 0), 0);
 
   return (
     <div className="space-y-4">
-
-      {/* Stats */}
       <div className="grid md:grid-cols-3 gap-4">
         <Card><CardContent className="p-4">Earnings: ₹{total}</CardContent></Card>
         <Card><CardContent className="p-4">Approved: {approved.length}</CardContent></Card>
         <Card><CardContent className="p-4">Total Tasks: {submissions.length}</CardContent></Card>
       </div>
 
-      {/* Task History */}
       <div className="space-y-2">
         {submissions.map((s, i) => (
           <Card key={i}>
@@ -112,15 +108,23 @@ function Dashboard() {
           </Card>
         ))}
       </div>
-
     </div>
   );
 }
+
 // ---------------- Tasks ----------------
 function TasksPage({ setChatOpen, setSelectedTask }) {
   const [tab, setTab] = useState("normal");
   const [tasks, setTasks] = useState([]);
   const [popupTask, setPopupTask] = useState(null);
+
+  // ✅ FIXED user (SSR safe)
+  const [user, setUser] = useState("guest");
+
+  useEffect(() => {
+    const stored = JSON.parse(localStorage.getItem("gr_profile") || "{}");
+    setUser(stored.email || "guest");
+  }, []);
 
   useEffect(() => {
     const load = () => {
@@ -137,9 +141,6 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
     };
   }, []);
 
-  const user = JSON.parse(localStorage.getItem("gr_profile") || "{}").email || "guest";
-
-  // ✅ GET LATEST SUBMISSION ONLY
   const getLatestRecord = (taskId) => {
     const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
 
@@ -150,23 +151,16 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
     return records[0];
   };
 
-  // ✅ PURE STATUS (NO SIDE EFFECTS)
   const getStatus = (taskId) => {
     const record = getLatestRecord(taskId);
 
     if (!record) return "allow";
-
     if (record.status === "approved") return "hide";
-
     if (record.status === "pending") return "pending";
 
     if (record.status === "rejected") {
       const rejectedAt = record.rejectedAt || 0;
-
-      if (Date.now() - rejectedAt < 30 * 60 * 1000) {
-        return "cooldown";
-      }
-
+      if (Date.now() - rejectedAt < 30 * 60 * 1000) return "cooldown";
       return "allow";
     }
 
@@ -202,7 +196,7 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
 
       <div className="grid md:grid-cols-3 gap-3">
         {(tab==="normal"?normal:affiliate)
-          .filter(t => getStatus(t.id) !== "hide") // remove approved
+          .filter(t => getStatus(t.id) !== "hide")
           .map(t=>{
             const status = getStatus(t.id);
             const isLocked = status !== "allow";
@@ -214,8 +208,6 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
                   <p>₹{t.reward}</p>
 
                   <div className="flex gap-2 mt-2">
-
-                    {/* VISIT */}
                     <Button
                       disabled={isLocked}
                       onClick={()=>{
@@ -229,7 +221,6 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
                       Visit
                     </Button>
 
-                    {/* SUBMIT */}
                     <Button
                       disabled={isLocked}
                       onClick={() => {
@@ -244,7 +235,6 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
                     >
                       Submit
                     </Button>
-
                   </div>
                 </CardContent>
               </Card>
@@ -252,11 +242,9 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
           })}
       </div>
 
-      {/* 🔥 SMART GLASS POPUP */}
       {popupTask && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-50">
           <div className="bg-white/20 backdrop-blur-xl border border-white/40 p-6 rounded-2xl shadow-xl w-80 text-center">
-            
             <h3 className="font-semibold mb-2">
               {popupTask === "pending" && "Under Verification"}
               {popupTask === "cooldown" && "Retry Locked"}
@@ -264,10 +252,9 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
 
             <p className="text-sm text-gray-200">
               {popupTask === "pending" &&
-                "This task is under verification. It may take 24–48 hours. If rejected, you can retry."}
-
+                "This task is under verification. It may take 24–48 hours."}
               {popupTask === "cooldown" &&
-                "This task was rejected. Please wait 30 minutes before retrying."}
+                "This task was rejected. Wait 30 minutes."}
             </p>
 
             <Button className="mt-4" onClick={()=>setPopupTask(null)}>
@@ -279,14 +266,26 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
     </div>
   );
 }
+
 // ---------------- Chatbot ----------------
 function Chatbot({ close, selectedTask }) {
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
 
-  const user = JSON.parse(localStorage.getItem("gr_profile") || "{}").email || "guest";
+  // ✅ FIXED user (SSR safe)
+  const [user, setUser] = useState("guest");
+
+  useEffect(() => {
+    const stored = JSON.parse(localStorage.getItem("gr_profile") || "{}");
+    setUser(stored.email || "guest");
+  }, []);
 
   const handleUpload = (e) => {
+    if (!selectedTask) {
+      alert("No task selected");
+      return;
+    }
+
     const file = e.target.files[0];
     if (!file) return;
 
@@ -297,7 +296,7 @@ function Chatbot({ close, selectedTask }) {
       submissions.push({
         id: Date.now(),
         task: selectedTask,
-        taskId: selectedTask?.id,
+        taskId: selectedTask.id,
         user,
         img: reader.result,
         status: "pending"
@@ -316,7 +315,7 @@ function Chatbot({ close, selectedTask }) {
     setChat(prev => [
       ...prev,
       { type: "user", text: message },
-      { type: "bot", text: selectedTask ? `Task: ${selectedTask.title}` : "Ask about tasks or withdrawal." }
+      { type: "bot", text: selectedTask?.title ? `Task: ${selectedTask.title}` : "Ask about tasks or withdrawal." }
     ]);
 
     setMessage("");
@@ -331,7 +330,7 @@ function Chatbot({ close, selectedTask }) {
             <X onClick={close}/>
           </div>
 
-          {selectedTask && <p className="text-xs">Task: {selectedTask.title}</p>}
+          {selectedTask?.title && <p className="text-xs">Task: {selectedTask.title}</p>}
 
           <div className="h-40 overflow-y-auto text-sm">
             {chat.map((c,i)=><div key={i}>{c.text}</div>)}
@@ -349,18 +348,30 @@ function Chatbot({ close, selectedTask }) {
   );
 }
 
-// ---------------- Profile ----------------
+// बाकी code same (Profile + Transactions untouched
 function ProfilePage() {
   const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(true);
   const [showWallet, setShowWallet] = useState(false);
 
+  // 🔥 FIX: prevents hydration crash in Next.js
+  const [mounted, setMounted] = useState(false);
+
   const [form, setForm] = useState({ name:"", email:"", method:"", details:"" });
 
   useEffect(()=>{
+    setMounted(true); // 🔥 FIX: ensures client-side only render
+
     const saved = JSON.parse(localStorage.getItem("gr_profile")||"null");
-    if(saved){ setProfile(saved); setForm(saved); setEditing(false); }
+    if(saved){ 
+      setProfile(saved); 
+      setForm(saved); 
+      setEditing(false); 
+    }
   },[]);
+
+  // 🔥 FIX: avoid SSR mismatch
+  if (!mounted) return null;
 
   const save = () => {
     localStorage.setItem("gr_profile", JSON.stringify(form));
@@ -380,7 +391,13 @@ function ProfilePage() {
           <div className="flex gap-2">
             <Button onClick={()=>setEditing(true)}>Edit</Button>
             <Button onClick={()=>setShowWallet(!showWallet)}>Wallet</Button>
-            <Button onClick={()=>{localStorage.removeItem("gr_profile");location.reload();}} className="bg-red-500 text-white">
+            <Button 
+              onClick={()=>{
+                localStorage.removeItem("gr_profile"); 
+                location.reload();
+              }} 
+              className="bg-red-500 text-white"
+            >
               Logout
             </Button>
           </div>
@@ -398,76 +415,82 @@ function ProfilePage() {
       )}
 
       {showWallet && (
-  <div className="p-4 bg-white/20 backdrop-blur-xl rounded-xl mt-3 border border-white/30">
-    {(() => {
-      const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
-      const withdrawals = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
+        <div className="p-4 bg-white/20 backdrop-blur-xl rounded-xl mt-3 border border-white/30">
+          {(() => {
 
-      const approved = subs.filter(s => s.status === "approved");
+            // 🔥 FIX: moved logic inside client-safe block
+            const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
+            const withdrawals = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
 
-      const totalEarn = approved.reduce((a, s) => a + (s.task?.reward || 0), 0);
+            const approved = subs.filter(s => s.status === "approved");
 
-      const totalWithdrawn = withdrawals
-        .filter(w => w.status === "approved")
-        .reduce((a, w) => a + w.amount, 0);
+            const totalEarn = approved.reduce((a, s) => a + (s.task?.reward || 0), 0);
 
-      const balance = totalEarn - totalWithdrawn;
+            const totalWithdrawn = withdrawals
+              .filter(w => w.status === "approved")
+              .reduce((a, w) => a + w.amount, 0);
 
-      return (
-        <>
-          <p className="font-semibold">Balance: ₹{balance}</p>
+            const balance = totalEarn - totalWithdrawn;
 
-          <input
-            id="withdrawAmount"
-            placeholder="Enter amount"
-            className="w-full p-2 mt-2 rounded bg-white/50"
-          />
+            return (
+              <>
+                <p className="font-semibold">Balance: ₹{balance}</p>
 
-          <Button
-            className="mt-2 w-full"
-            disabled={balance < 100}
-            onClick={() => {
-              const amount = Number(document.getElementById("withdrawAmount").value);
+                <input
+                  id="withdrawAmount"
+                  placeholder="Enter amount"
+                  className="w-full p-2 mt-2 rounded bg-white/50"
+                />
 
-              if (!amount || amount <= 0) {
-                alert("Enter valid amount");
-                return;
-              }
+                <Button
+                  className="mt-2 w-full"
+                  disabled={balance < 100}
+                  onClick={() => {
+                    const amount = Number(document.getElementById("withdrawAmount").value);
 
-              if (amount > balance) {
-                alert("Insufficient balance");
-                return;
-              }
+                    if (!amount || amount <= 0) {
+                      alert("Enter valid amount");
+                      return;
+                    }
 
-              const w = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
+                    if (amount > balance) {
+                      alert("Insufficient balance");
+                      return;
+                    }
 
-              w.push({
-                id: Date.now(),
-                amount,
-                user: profile?.email,
-                status: "pending"
-              });
+                    const w = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
 
-              localStorage.setItem("gr_withdrawals", JSON.stringify(w));
+                    w.push({
+                      id: Date.now(),
+                      amount,
+                      user: profile?.email,
+                      status: "pending"
+                    });
 
-              alert("Withdrawal Requested ✅");
-            }}
-          >
-            Request Withdraw
-          </Button>
-        </>
-      );
-    })()}
-  </div>
-)}
+                    localStorage.setItem("gr_withdrawals", JSON.stringify(w));
+
+                    alert("Withdrawal Requested ✅");
+                  }}
+                >
+                  Request Withdraw
+                </Button>
+              </>
+            );
+          })()}
+        </div>
+      )}
     </Card>
   );
 }
-// ---------------- TransactionPage ----------------
 function TransactionsPage() {
   const [withdrawals, setWithdrawals] = useState([]);
 
+  // 🔥 FIX: prevent hydration mismatch
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
+    setMounted(true); // 🔥 FIX
+
     const load = () => {
       setWithdrawals(JSON.parse(localStorage.getItem("gr_withdrawals") || "[]"));
     };
@@ -476,6 +499,9 @@ function TransactionsPage() {
     const interval = setInterval(load, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // 🔥 FIX: avoid SSR crash
+  if (!mounted) return null;
 
   return (
     <div className="space-y-4">
