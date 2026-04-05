@@ -280,151 +280,193 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
   );
 }
 // ---------------- Chatbot ----------------
-function Chatbot({ close, selectedTask }) {
-  const [message, setMessage] = useState("");
-  const [chat, setChat] = useState([]);
+import { supabase } from "@/lib/supabase";
 
-  const user = JSON.parse(localStorage.getItem("gr_profile") || "{}").email || "guest";
+const handleUpload = async (e) => {
+  if (!selectedTask) {
+    alert("No task selected");
+    return;
+  }
 
-  const handleUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const file = e.target.files[0];
+  if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const submissions = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
+  const fileName = `${Date.now()}-${file.name}`;
 
-      submissions.push({
-        id: Date.now(),
-        task: selectedTask,
-        taskId: selectedTask?.id,
-        user,
-        img: reader.result,
-        status: "pending"
-      });
+  // 🔥 Upload to Supabase Storage
+  const { data, error } = await supabase.storage
+    .from("screenshots")
+    .upload(fileName, file);
 
-      localStorage.setItem("gr_submissions", JSON.stringify(submissions));
-      setChat(prev => [...prev, { type: "bot", text: "Screenshot uploaded ✅" }]);
-    };
+  if (error) {
+    alert("Upload failed");
+    return;
+  }
 
-    reader.readAsDataURL(file);
-  };
+  // 🔥 Get public URL
+  const { data: publicUrl } = supabase.storage
+    .from("screenshots")
+    .getPublicUrl(fileName);
 
-  const sendMessage = () => {
-    if (!message.trim()) return;
+  // 🔥 Save in DB
+  await supabase.from("submissions").insert([
+    {
+      task_id: selectedTask.id,
+      user_email: user,
+      image_url: publicUrl.publicUrl,
+      status: "pending",
+    },
+  ]);
 
-    setChat(prev => [
-      ...prev,
-      { type: "user", text: message },
-      { type: "bot", text: selectedTask ? `Task: ${selectedTask.title}` : "Ask about tasks or withdrawal." }
-    ]);
-
-    setMessage("");
-  };
-
-  return (
-    <div className="fixed bottom-20 right-6 w-80">
-      <Card className="bg-white/40 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-        <CardContent className="p-4">
-          <div className="flex justify-between mb-2">
-            <span>Assistant</span>
-            <X onClick={close}/>
-          </div>
-
-          {selectedTask && <p className="text-xs">Task: {selectedTask.title}</p>}
-
-          <div className="h-40 overflow-y-auto text-sm">
-            {chat.map((c,i)=><div key={i}>{c.text}</div>)}
-          </div>
-
-          <input type="file" onChange={handleUpload} />
-
-          <div className="flex gap-2 mt-2">
-            <input value={message} onChange={e=>setMessage(e.target.value)} className="flex-1 border p-1"/>
-            <Button onClick={sendMessage}>Send</Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
+  alert("Screenshot uploaded ✅");
+};
 // ---------------- Profile ----------------
 function ProfilePage() {
   const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(true);
-  const [showWallet, setShowWallet] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  const [form, setForm] = useState({ name:"", email:"", method:"", details:"" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    method: "upi",
+    details: ""
+  });
 
-  useEffect(()=>{
-    const saved = JSON.parse(localStorage.getItem("gr_profile")||"null");
-    if(saved){ setProfile(saved); setForm(saved); setEditing(false); }
-  },[]);
+  const [balance, setBalance] = useState(0);
+
+  useEffect(() => {
+    setMounted(true);
+
+    // Load profile
+    const saved = JSON.parse(localStorage.getItem("gr_profile") || "null");
+    if (saved) {
+      setProfile(saved);
+      setForm(saved);
+      setEditing(false);
+    }
+
+    // Load wallet balance
+    const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
+    const withdrawals = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
+
+    const approved = subs.filter(s => s.status === "approved");
+
+    const totalEarn = approved.reduce((a, s) => a + (s.task?.reward || 0), 0);
+
+    const totalWithdrawn = withdrawals
+      .filter(w => w.status === "approved")
+      .reduce((a, w) => a + w.amount, 0);
+
+    setBalance(totalEarn - totalWithdrawn);
+  }, []);
+
+  if (!mounted) return null;
 
   const save = () => {
+    if (!form.name || !form.email || !form.details) {
+      alert("Fill all fields");
+      return;
+    }
+
     localStorage.setItem("gr_profile", JSON.stringify(form));
     setProfile(form);
     setEditing(false);
   };
 
   return (
-    <Card className="p-6 space-y-4">
+    <div className="max-w-md mx-auto space-y-4">
 
-      {!editing && profile && (
-        <>
-          <h3>{profile.name}</h3>
-          <p>{profile.email}</p>
-          <p>{profile.method} : {profile.details}</p>
+      {/* PROFILE CARD */}
+      <Card className="p-5 space-y-3">
 
-          <div className="flex gap-2">
-            <Button onClick={()=>setEditing(true)}>Edit</Button>
-            <Button onClick={()=>setShowWallet(!showWallet)}>Wallet</Button>
-            <Button onClick={()=>{localStorage.removeItem("gr_profile");location.reload();}} className="bg-red-500 text-white">
-              Logout
-            </Button>
-          </div>
-        </>
-      )}
+        {editing ? (
+          <>
+            <input
+              placeholder="Name"
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+              className="w-full p-2 border rounded"
+            />
 
-      {editing && (
-        <>
-          <input placeholder="Name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>
-          <input placeholder="Email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/>
-          <input placeholder="Method" value={form.method} onChange={e=>setForm({...form,method:e.target.value})}/>
-          <input placeholder="Details" value={form.details} onChange={e=>setForm({...form,details:e.target.value})}/>
-          <Button onClick={save}>Save</Button>
-        </>
-      )}
+            <input
+              placeholder="Email"
+              value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })}
+              className="w-full p-2 border rounded"
+            />
 
-      {showWallet && (
-  <div className="p-4 bg-white/20 backdrop-blur-xl rounded-xl mt-3 border border-white/30">
-    {(() => {
-      const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
-      const withdrawals = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
+            {/* PAYMENT METHOD */}
+            <select
+              value={form.method}
+              onChange={e => setForm({ ...form, method: e.target.value })}
+              className="w-full p-2 border rounded"
+            >
+              <option value="upi">UPI</option>
+              <option value="wallet">Wallet</option>
+              <option value="bank">Bank</option>
+            </select>
 
-      const approved = subs.filter(s => s.status === "approved");
+            {/* DYNAMIC INPUT */}
+            <input
+              placeholder={
+                form.method === "upi"
+                  ? "Enter UPI ID"
+                  : form.method === "wallet"
+                  ? "Enter Wallet Number"
+                  : "Enter Bank Details"
+              }
+              value={form.details}
+              onChange={e => setForm({ ...form, details: e.target.value })}
+              className="w-full p-2 border rounded"
+            />
 
-      const totalEarn = approved.reduce((a, s) => a + (s.task?.reward || 0), 0);
+            <div className="flex gap-2">
+              <Button className="w-full" onClick={save}>
+                Save
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h3 className="font-semibold text-lg">{profile.name}</h3>
+            <p>{profile.email}</p>
+            <p className="text-sm text-gray-600">
+              {profile.method.toUpperCase()} : {profile.details}
+            </p>
 
-      const totalWithdrawn = withdrawals
-        .filter(w => w.status === "approved")
-        .reduce((a, w) => a + w.amount, 0);
+            <div className="flex gap-2">
+              <Button onClick={() => setEditing(true)}>Edit</Button>
 
-      const balance = totalEarn - totalWithdrawn;
+              <Button
+                className="bg-red-500 text-white"
+                onClick={() => {
+                  localStorage.removeItem("gr_profile");
+                  location.reload();
+                }}
+              >
+                Logout
+              </Button>
+            </div>
+          </>
+        )}
+      </Card>
 
-      return (
-        <>
-          <p className="font-semibold">Balance: ₹{balance}</p>
+      {/* 💰 WALLET SECTION */}
+      {!editing && (
+        <Card className="p-5 space-y-3">
+          <h3 className="font-semibold">Wallet</h3>
+
+          <p className="text-lg font-bold">₹{balance}</p>
 
           <input
             id="withdrawAmount"
             placeholder="Enter amount"
-            className="w-full p-2 mt-2 rounded bg-white/50"
+            className="w-full p-2 border rounded"
           />
 
           <Button
-            className="mt-2 w-full"
+            className="w-full"
             disabled={balance < 100}
             onClick={() => {
               const amount = Number(document.getElementById("withdrawAmount").value);
@@ -444,7 +486,7 @@ function ProfilePage() {
               w.push({
                 id: Date.now(),
                 amount,
-                user: profile?.email,
+                user: profile.email,
                 status: "pending"
               });
 
@@ -453,14 +495,15 @@ function ProfilePage() {
               alert("Withdrawal Requested ✅");
             }}
           >
-            Request Withdraw
+            Withdraw
           </Button>
-        </>
-      );
-    })()}
-  </div>
-)}
-    </Card>
+
+          <p className="text-xs text-gray-500">
+            Minimum withdraw: ₹100
+          </p>
+        </Card>
+      )}
+    </div>
   );
 }
 // ---------------- TransactionPage ----------------
