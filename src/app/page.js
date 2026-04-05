@@ -280,46 +280,129 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
   );
 }
 // ---------------- Chatbot ----------------
+// ---------------- Chatbot ----------------
 import { supabase } from "@/lib/supabase";
 
-const handleUpload = async (e) => {
-  if (!selectedTask) {
-    alert("No task selected");
-    return;
-  }
+function Chatbot({ close, selectedTask }) {
+  const [message, setMessage] = useState("");
+  const [chat, setChat] = useState([]);
+  const [user, setUser] = useState(null);
 
-  const file = e.target.files[0];
-  if (!file) return;
+  // 🔥 Get logged in user
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data?.user?.email || null);
+    });
+  }, []);
 
-  const fileName = `${Date.now()}-${file.name}`;
+  // 🔥 FIXED UPLOAD FUNCTION
+  const handleUpload = async (e) => {
+    try {
+      if (!selectedTask) {
+        alert("No task selected ❌");
+        return;
+      }
 
-  // 🔥 Upload to Supabase Storage
-  const { data, error } = await supabase.storage
-    .from("screenshots")
-    .upload(fileName, file);
+      if (!user) {
+        alert("Login required ❌");
+        return;
+      }
 
-  if (error) {
-    alert("Upload failed");
-    return;
-  }
+      const file = e.target.files[0];
+      if (!file) return;
 
-  // 🔥 Get public URL
-  const { data: publicUrl } = supabase.storage
-    .from("screenshots")
-    .getPublicUrl(fileName);
+      const fileName = `${Date.now()}-${file.name}`;
 
-  // 🔥 Save in DB
-  await supabase.from("submissions").insert([
-    {
-      task_id: selectedTask.id,
-      user_email: user,
-      image_url: publicUrl.publicUrl,
-      status: "pending",
-    },
-  ]);
+      // 🔥 Upload to Supabase Storage
+      const { error } = await supabase.storage
+        .from("screenshots")
+        .upload(fileName, file);
 
-  alert("Screenshot uploaded ✅");
-};
+      if (error) {
+        console.error(error);
+        alert("Upload failed ❌");
+        return;
+      }
+
+      // 🔥 Get public URL
+      const { data } = supabase.storage
+        .from("screenshots")
+        .getPublicUrl(fileName);
+
+      const imageUrl = data.publicUrl;
+
+      // 🔥 Insert into DB
+      const { error: dbError } = await supabase
+        .from("submissions")
+        .insert([
+          {
+            task_id: selectedTask.id,
+            user_email: user,
+            image_url: imageUrl,
+            status: "pending",
+          },
+        ]);
+
+      if (dbError) {
+        console.error(dbError);
+        alert("DB error ❌");
+        return;
+      }
+
+      setChat(prev => [...prev, { text: "Screenshot uploaded ✅" }]);
+
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong ❌");
+    }
+  };
+
+  const sendMessage = () => {
+    if (!message.trim()) return;
+
+    setChat(prev => [
+      ...prev,
+      { text: message },
+      { text: selectedTask ? `Task: ${selectedTask.title}` : "Ask anything" }
+    ]);
+
+    setMessage("");
+  };
+
+  return (
+    <div className="fixed bottom-20 right-6 w-80">
+      <Card className="bg-white/40 backdrop-blur-xl shadow-lg">
+        <CardContent className="p-4">
+
+          <div className="flex justify-between mb-2">
+            <span>Assistant</span>
+            <X onClick={close}/>
+          </div>
+
+          {selectedTask && (
+            <p className="text-xs mb-2">Task: {selectedTask.title}</p>
+          )}
+
+          <div className="h-40 overflow-y-auto text-sm">
+            {chat.map((c,i)=><div key={i}>{c.text}</div>)}
+          </div>
+
+          <input type="file" onChange={handleUpload} />
+
+          <div className="flex gap-2 mt-2">
+            <input 
+              value={message} 
+              onChange={e=>setMessage(e.target.value)} 
+              className="flex-1 border p-1"
+            />
+            <Button onClick={sendMessage}>Send</Button>
+          </div>
+
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 // ---------------- Profile ----------------
 function ProfilePage() {
   const [profile, setProfile] = useState(null);
