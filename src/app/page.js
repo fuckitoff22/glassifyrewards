@@ -4,8 +4,19 @@ import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { User, X, ExternalLink, MessageCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 export default function GlassifyApp() {
+
+  const router = useRouter();
+  useEffect(() => {
+  supabase.auth.getUser().then(({ data }) => {
+    if (!data.user) {
+      router.push("/login"); // ✅ open login page first
+    }
+  });
+}, []);
 
   useEffect(() => {
     let stored = JSON.parse(localStorage.getItem("gr_tasks") || "[]");
@@ -521,15 +532,15 @@ function ProfilePage() {
             <div className="flex gap-2">
               <Button onClick={() => setEditing(true)}>Edit</Button>
 
-              <Button
-                className="bg-red-500 text-white"
-                onClick={() => {
-                  localStorage.removeItem("gr_profile");
-                  location.reload();
-                }}
-              >
-                Logout
-              </Button>
+             <Button
+  className="bg-red-500 text-white"
+  onClick={async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/login"; // ✅ go to login page
+  }}
+>
+  Logout
+</Button>
             </div>
           </>
         )}
