@@ -291,7 +291,6 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
   );
 }
 // ---------------- Chatbot ----------------
-import { supabase } from "@/lib/supabase"; 
 
 function Chatbot({ close, selectedTask }) {
   const [message, setMessage] = useState("");
