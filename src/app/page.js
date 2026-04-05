@@ -291,8 +291,7 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
   );
 }
 // ---------------- Chatbot ----------------
-// ---------------- Chatbot ----------------
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase"; 
 
 function Chatbot({ close, selectedTask }) {
   const [message, setMessage] = useState("");
@@ -574,19 +573,16 @@ function ProfilePage() {
                 alert("Insufficient balance");
                 return;
               }
+await supabase.from("withdrawals").insert([
+  {
+    user_email: profile.email,
+    amount: amount,
+    status: "pending"
+  }
+]);
 
-              const w = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
-
-              w.push({
-                id: Date.now(),
-                amount,
-                user: profile.email,
-                status: "pending"
-              });
-
-              localStorage.setItem("gr_withdrawals", JSON.stringify(w));
-
-              alert("Withdrawal Requested ✅");
+alert("Withdrawal Requested ✅");
+             
             }}
           >
             Withdraw
