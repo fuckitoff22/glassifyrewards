@@ -1,40 +1,37 @@
-const router = useRouter();
+"use client";
 
-const [user, setUser] = useState(null);
-const [loading, setLoading] = useState(true);
+import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
-useEffect(() => {
+export default function Callback() {
+  const router = useRouter();
 
-  // 🔥 LISTEN FIRST (IMPORTANT)
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    (_event, session) => {
-      const currentUser = session?.user ?? null;
+  useEffect(() => {
+    const handleLogin = async () => {
+      try {
+        const { data, error } = await supabase.auth.exchangeCodeForSession();
 
-      setUser(currentUser);
-      setLoading(false);
+        if (error) {
+          console.error("OAuth error:", error);
+          router.replace("/login");
+          return;
+        }
 
-      if (!currentUser) {
+        if (data?.session) {
+          router.replace("/");
+        } else {
+          router.replace("/login");
+        }
+      } catch (err) {
+        console.error("Crash:", err);
         router.replace("/login");
       }
-    }
-  );
+    };
 
-  // 🔥 SMALL DELAY TO WAIT FOR SESSION
-  setTimeout(async () => {
-    const { data } = await supabase.auth.getSession();
-    const currentUser = data.session?.user ?? null;
+    handleLogin();
+  }, [router]);
 
-    setUser(currentUser);
-    setLoading(false);
-
-    if (!currentUser) {
-      router.replace("/login");
-    }
-  }, 300); // ✅ key fix
-
-  return () => listener.subscription.unsubscribe();
-
-}, []);
   return (
     <div className="h-screen flex items-center justify-center">
       Logging you in...
