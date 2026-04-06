@@ -1,38 +1,35 @@
 "use client";
+
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
 
-  const googleLogin = async () => {
+  const handleLogin = async () => {
     await supabase.auth.signInWithOAuth({
-  provider: "google",
-  options: {
-    redirectTo: "https://glassifyrapp.vercel.app/auth/callback"
-  }
-});
+      provider: "google",
+      options: {
+        redirectTo: "https://glassifyrapp.vercel.app/auth/callback"
+      }
+    });
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
+    <div className="h-screen flex items-center justify-center bg-white">
 
-      <div className="w-[360px] p-6 rounded-2xl bg-blue-100/40 backdrop-blur-xl border border-blue-200 shadow-xl text-center">
+      <div className="backdrop-blur-lg bg-white/70 border border-gray-200 rounded-2xl shadow-xl p-8 w-[350px] text-center transition hover:shadow-2xl">
 
-        <h2 className="text-xl font-semibold mb-6">
-          Continue with Google
+        <h2 className="text-2xl font-semibold mb-6 text-gray-800">
+          Login
         </h2>
 
         <button
-          onClick={googleLogin}
-          className="w-full py-3 rounded-full bg-white shadow hover:scale-105 transition flex items-center justify-center gap-3"
+          onClick={handleLogin}
+          className="w-full py-3 rounded-full bg-blue-600 text-white font-medium hover:bg-blue-700 transition"
         >
-          <img
-            src="https://cdn-icons-png.flaticon.com/512/281/281764.png"
-            className="w-5 h-5"
-          />
           Continue with Google
         </button>
 
       </div>
-
     </div>
   );
 }
