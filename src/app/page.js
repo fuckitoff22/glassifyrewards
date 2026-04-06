@@ -9,13 +9,18 @@ import { useRouter } from "next/navigation";
 
 export default function GlassifyApp() {
 
-  const router = useRouter();
   useEffect(() => {
-  supabase.auth.getUser().then(({ data }) => {
-    if (!data.user) {
-      router.push("/login"); // ✅ open login page first
+  const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    
+    if (session?.user) {
+      setUser(session.user); // ✅ user logged in
+    } else {
+      window.location.href = "/login"; // ❌ only if no session
     }
+
   });
+
+  return () => listener.subscription.unsubscribe();
 }, []);
 
   useEffect(() => {
