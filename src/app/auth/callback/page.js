@@ -10,27 +10,23 @@ export default function Callback() {
   useEffect(() => {
     const handleLogin = async () => {
       try {
-        const { data, error } = await supabase.auth.exchangeCodeForSession();
+        // 🔥 exchange code (important)
+        await supabase.auth.exchangeCodeForSession();
 
-        if (error) {
-          console.error("OAuth error:", error);
-          router.replace("/login");
-          return;
-        }
-
-        if (data?.session) {
+        // 🔥 DO NOT CHECK SESSION HERE
+        // just redirect to home
+        setTimeout(() => {
           router.replace("/");
-        } else {
-          router.replace("/login");
-        }
+        }, 300); // small delay ensures session is ready
+
       } catch (err) {
-        console.error("Crash:", err);
+        console.error("OAuth crash:", err);
         router.replace("/login");
       }
     };
 
     handleLogin();
-  }, [router]);
+  }, []);
 
   return (
     <div className="h-screen flex items-center justify-center">
