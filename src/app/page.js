@@ -9,6 +9,9 @@ import { useRouter } from "next/navigation";
 
 
 export default function GlassifyApp() {
+  return <div>Home</div>;
+}
+
 
  const router = useRouter();
 
