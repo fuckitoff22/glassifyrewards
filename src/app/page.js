@@ -444,30 +444,218 @@ function ProfilePage() {
   useEffect(() => {
     setMounted(true);
 
-    // 🔥 GET USER FROM SUPABASE (ADDED)
-supabase.auth.getUser().then(({ data }) => {
-  const user = data.user;
+    // 🔥 GET USER FROM SUPABASE (UPDATED)
+    supabase.auth.getUser().then(({ data }) => {
+      const user = data.user;
 
-  if (user) {
-    const saved = JSON.parse(
-      localStorage.getItem("gr_profile_" + user.id) || "null"
-    );
+      if (user) {
+        const saved = JSON.parse(
+          localStorage.getItem("gr_profile_" + user.id) || "null"
+        );
 
-    if (saved) {
-      setProfile(saved);
-      setForm(saved);
+        if (saved) {
+          setProfile(saved);
+          setForm(saved);
+          setEditing(false);
+        } else {
+          // 🔥 ONLY FIRST TIME
+          setForm({
+            name: user.user_metadata?.full_name || "",
+            email: user.email || "",
+            method: "upi",
+            details: ""
+          });
+        }
+      }
+    });
+
+    // Load wallet balance (unchanged)
+    const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
+    const withdrawals = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
+
+    const approved = subs.filter(s => s.status === "approved");
+
+    const totalEarn = approved.reduce((a, s) => a + (s.task?.reward || 0), 0);
+
+    const totalWithdrawn = withdrawals
+      .filter(w => w.status === "approved")
+      .reduce((a, w) => a + w.amount, 0);
+
+    setBalance(totalEarn - totalWithdrawn);
+  }, []);
+
+  if (!mounted) return null;
+
+  // 🔥 FIXED SAVE FUNCTION
+  const save = async () => {
+    try {
+      console.log("Saving...", form);
+
+      if (!form.name || !form.email || !form.details) {
+        alert("Fill all fields");
+        return;
+      }
+
+      const { data: userData } = await supabase.auth.getUser();
+
+      if (!userData?.user) {
+        alert("User not found ❌");
+        return;
+      }
+
+      // 🔥 save to Supabase
+      const { error } = await supabase.from("profiles").upsert([
+        {
+          id: userData.user.id,
+          name: form.name,
+          email: form.email,
+          method: form.method,
+          details: form.details
+        }
+      ]);
+
+      if (error) {
+        console.error(error);
+        alert("Error saving ❌");
+        return;
+      }
+
+      // 🔥 localStorage user-specific
+      localStorage.setItem(
+        "gr_profile_" + userData.user.id,
+        JSON.stringify(form)
+      );
+
+      setProfile(form);
       setEditing(false);
-    } else {
-      // 🔥 ONLY FIRST TIME
-      setForm({
-        name: user.user_metadata?.full_name || "",
-        email: user.email || "",
-        method: "upi",
-        details: ""
-      });
+
+      alert("Saved successfully ✅");
+
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong ❌");
     }
-  }
-});
+  };
+
+  return (
+    <div className="max-w-md mx-auto space-y-4">
+
+      <Card className="p-5 space-y-3">
+
+        {editing ? (
+          <>
+            <input
+              placeholder="Name"
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+              className="w-full p-2 border rounded"
+            />
+
+            <input
+              placeholder="Email"
+              value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })}
+              className="w-full p-2 border rounded"
+            />
+
+            <select
+              value={form.method}
+              onChange={e => setForm({ ...form, method: e.target.value })}
+              className="w-full p-2 border rounded"
+            >
+              <option value="upi">UPI</option>
+              <option value="wallet">Wallet</option>
+              <option value="bank">Bank</option>
+            </select>
+
+            <input
+              placeholder={
+                form.method === "upi"
+                  ? "Enter UPI ID"
+                  : form.method === "wallet"
+                  ? "Enter Wallet Number"
+                  : "Enter Bank Details"
+              }
+              value={form.details}
+              onChange={e => setForm({ ...form, details: e.target.value })}
+              className="w-full p-2 border rounded"
+            />
+
+            <div className="flex gap-2">
+              <Button className="w-full" onClick={save}>
+                Save
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h3 className="font-semibold text-lg">{profile.name}</h3>
+            <p>{profile.email}</p>
+            <p className="text-sm text-gray-600">
+              {profile.method.toUpperCase()} : {profile.details}
+            </p>
+
+            <div className="flex gap-2">
+              <Button onClick={() => setEditing(true)}>Edit</Button>
+
+              <Button
+                className="bg-red-500 text-white"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  window.location.href = "/login";
+                }}
+              >
+                Logout
+              </Button>
+            </div>
+          </>
+        )}
+      </Card>
+
+      {!editing && (
+        <Card className="p-5 space-y-3">
+          <h3 className="font-semibold">Wallet</h3>
+
+          <p className="text-lg font-bold">₹{balance}</p>
+
+          <input
+            id="withdrawAmount"
+            placeholder="Enter amount"
+            className="w-full p-2 border rounded"
+          />
+
+          <Button
+            onClick={async () => {
+
+              const amount = Number(document.getElementById("withdrawAmount").value);
+
+              if (!amount || amount <= 0) {
+                alert("Enter valid amount");
+                return;
+              }
+
+              await supabase.from("withdrawals").insert([
+                {
+                  user_email: profile.email,
+                  amount: amount,
+                  status: "pending"
+                }
+              ]);
+
+              alert("Withdrawal Requested ✅");
+            }}
+          >
+            Withdraw
+          </Button>
+
+          <p className="text-xs text-gray-500">
+            Minimum withdraw: ₹100
+          </p>
+        </Card>
+      )}
+    </div>
+  );
+}
 
     // Load wallet balance
     const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
