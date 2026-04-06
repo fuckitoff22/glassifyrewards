@@ -31,16 +31,6 @@ useEffect(() => {
 
 }, []);
 
-// ⛔ wait until session is ready
-if (loading) return null;
-
-// 🔐 redirect if not logged in
-if (!user) {
-  window.location.href = "/login";
-  return null;
-}
-  return () => listener.subscription.unsubscribe();
-}, []);
 
   useEffect(() => {
     let stored = JSON.parse(localStorage.getItem("gr_tasks") || "[]");
