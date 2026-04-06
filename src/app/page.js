@@ -19,61 +19,45 @@ export default function GlassifyApp() {
   const [darkMode, setDarkMode] = useState(false);
 
   // ✅ FIXED AUTH + PROFILE SYNC (NO UI CHANGE)
-// ✅ FIXED AUTH + PROFILE SYNC (NO UI/UX CHANGE)
 useEffect(() => {
   let isMounted = true;
 
-  const initUser = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!isMounted) return;
-
-      setUser(user);
-
-      if (!user) {
-        setLoading(false);
-        router.replace("/login");
-        return;
-      }
-
-      // ✅ ensure profile exists
-      await supabase.from("profiles").upsert({
-        id: user.id,
-        email: user.email,
-        wallet: 0
-      });
-
-      setLoading(false);
-    } catch (err) {
-      console.log("Auth init error:", err);
-      setLoading(false);
-    }
-  };
-
-  initUser();
-
+  // ✅ Listen FIRST (important)
   const { data: authListener } = supabase.auth.onAuthStateChange(
     async (_event, session) => {
-      const currentUser = session?.user ?? null;
-
       if (!isMounted) return;
 
+      const currentUser = session?.user ?? null;
+
       setUser(currentUser);
+      setLoading(false); // ✅ ALWAYS stop loading here
 
       if (!currentUser) {
         router.replace("/login");
       } else {
+        // ensure profile exists
         await supabase.from("profiles").upsert({
           id: currentUser.id,
           email: currentUser.email,
           wallet: 0
         });
       }
-
-      setLoading(false); // ✅ VERY IMPORTANT
     }
   );
+
+  // ✅ ALSO fetch session (backup)
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (!isMounted) return;
+
+    const currentUser = session?.user ?? null;
+
+    setUser(currentUser);
+    setLoading(false); // ✅ IMPORTANT
+
+    if (!currentUser) {
+      router.replace("/login");
+    }
+  });
 
   return () => {
     isMounted = false;
