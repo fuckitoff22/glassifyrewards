@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function Callback() {
+  return <div>Callback</div>;
+}
   useEffect(() => {
     const handleLogin = async () => {
       try {
