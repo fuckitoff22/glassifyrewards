@@ -18,26 +18,38 @@ export default function GlassifyApp() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
 
-  // ✅ FIXED AUTH (no crash, no loop)
-  useEffect(() => {
-    const authListener = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        const currentUser = session?.user ?? null;
+  // ✅ FIXED AUTH + PROFILE SYNC (NO UI CHANGE)
+useEffect(() => {
+  const authListener = supabase.auth.onAuthStateChange(
+    async (_event, session) => {
+      const currentUser = session?.user ?? null;
 
-        setUser(currentUser);
-        setLoading(false);
+      setUser(currentUser);
+      setLoading(false);
 
-        if (!currentUser) {
-          router.replace("/login");
+      if (!currentUser) {
+        router.replace("/login");
+      } else {
+        // ✅ NEW FIX: Ensure user exists in profiles table
+        const { error } = await supabase
+          .from("profiles")
+          .upsert({
+            id: currentUser.id,
+            email: currentUser.email,
+            wallet: 0
+          });
+
+        if (error) {
+          console.log("Profile insert error:", error.message);
         }
       }
-    );
+    }
+  );
 
-    return () => {
-      authListener.data.subscription.unsubscribe();
-    };
-  }, []);
-
+  return () => {
+    authListener.data.subscription.unsubscribe();
+  };
+}, []);
   // ✅ KEEP ALL HOOKS ABOVE (IMPORTANT)
   useEffect(() => {
     let stored = JSON.parse(localStorage.getItem("gr_tasks") || "[]");
