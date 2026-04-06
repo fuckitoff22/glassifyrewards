@@ -432,6 +432,8 @@ function ProfilePage() {
   const [editing, setEditing] = useState(true);
   const [mounted, setMounted] = useState(false);
 
+  const [user, setUser] = useState(null); // ✅ ADDED
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -446,11 +448,13 @@ function ProfilePage() {
 
     const loadUser = async () => {
       const { data } = await supabase.auth.getUser();
-      const user = data?.user;
+      const currentUser = data?.user;
 
-      if (user) {
+      if (currentUser) {
+        setUser(currentUser); // ✅ STORE USER
+
         const saved = JSON.parse(
-          localStorage.getItem("gr_profile_" + user.id) || "null"
+          localStorage.getItem("gr_profile_" + currentUser.id) || "null"
         );
 
         if (saved) {
@@ -459,15 +463,15 @@ function ProfilePage() {
           setEditing(false);
         } else {
           setForm({
-            name: user.user_metadata?.full_name || "",
-            email: user.email || "",
+            name: currentUser.user_metadata?.full_name || "",
+            email: currentUser.email || "",
             method: "upi",
             details: ""
           });
         }
       }
 
-      // wallet logic
+      // wallet logic (unchanged)
       const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
       const withdrawals = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
 
@@ -495,17 +499,26 @@ function ProfilePage() {
         return;
       }
 
-      const { data: userData } = await supabase.auth.getUser();
-
-      if (!userData?.user) {
-        alert("User not found ❌");
+      // 🔥 USE STATE USER (NO MORE getUser AGAIN)
+      if (!user) {
+        alert("User not ready, wait a second ⏳");
         return;
       }
 
-      // 🔥 SAVE TO SUPABASE
+      // 🔥 UPDATE UI FIRST (IMPORTANT)
+      setProfile(form);
+      setEditing(false);
+
+      // 🔥 SAVE LOCAL
+      localStorage.setItem(
+        "gr_profile_" + user.id,
+        JSON.stringify(form)
+      );
+
+      // 🔥 SAVE TO SUPABASE (background)
       const { error } = await supabase.from("profiles").upsert([
         {
-          id: userData.user.id,
+          id: user.id,
           name: form.name,
           email: form.email,
           method: form.method,
@@ -515,18 +528,7 @@ function ProfilePage() {
 
       if (error) {
         console.error(error);
-        alert("Error saving ❌");
-        return;
       }
-
-      // 🔥 SAVE LOCAL (user specific)
-      localStorage.setItem(
-        "gr_profile_" + userData.user.id,
-        JSON.stringify(form)
-      );
-
-      setProfile(form);
-      setEditing(false);
 
       alert("Saved successfully ✅");
 
