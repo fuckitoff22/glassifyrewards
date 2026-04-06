@@ -2,24 +2,37 @@
 
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
-export default function Callback() {
-  
+export default function CallbackPage() {
+  const router = useRouter();
+
   useEffect(() => {
-    const handleLogin = async () => {
-      try {
-        await supabase.auth.exchangeCodeForSession();
+    const handleAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
 
-        // ✅ ALWAYS SAFE
-        window.location.href = "/";
-        
-      } catch (err) {
-        console.error(err);
-        window.location.href = "/login";
+      const user = session?.user;
+
+      if (user) {
+        // ✅ CREATE USER IN DB
+        const { error } = await supabase
+          .from("profiles")
+          .upsert({
+            id: user.id,
+            email: user.email,
+            wallet: 0
+          });
+
+        if (error) {
+          console.log("PROFILE CREATE ERROR:", error.message);
+        }
       }
+
+      // ✅ redirect to main app
+      router.replace("/");
     };
 
-    handleLogin();
+    handleAuth();
   }, []);
 
   return (
@@ -28,4 +41,3 @@ export default function Callback() {
     </div>
   );
 }
- 
