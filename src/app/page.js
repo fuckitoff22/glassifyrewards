@@ -469,14 +469,6 @@ function ProfilePage() {
   }
 });
 
-    // Load profile
-    const saved = JSON.parse(localStorage.getItem("gr_profile") || "null");
-    if (saved) {
-      setProfile(saved);
-      setForm(saved);
-      setEditing(false);
-    }
-
     // Load wallet balance
     const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
     const withdrawals = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
