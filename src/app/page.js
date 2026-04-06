@@ -502,7 +502,7 @@ function ProfilePage() {
     }
 
     // keep localStorage
-  const { data } = await supabase.auth.getUser();
+  const { data: userData } = await supabase.auth.getUser();
 localStorage.setItem("gr_profile_" + data.user.id, JSON.stringify(form));
 
     // 🔥 save to Supabase
