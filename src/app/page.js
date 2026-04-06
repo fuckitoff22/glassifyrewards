@@ -19,18 +19,44 @@ export default function GlassifyApp() {
   const [darkMode, setDarkMode] = useState(false);
 
   // ✅ FIXED AUTH + PROFILE SYNC (NO UI CHANGE)
+// ✅ FIXED AUTH + PROFILE SYNC (FULLY RELIABLE)
 useEffect(() => {
-  const authListener = supabase.auth.onAuthStateChange(
+  const initUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    setUser(user);
+    setLoading(false);
+
+    if (!user) {
+      router.replace("/login");
+    } else {
+      // ✅ Ensure profile exists
+      const { error } = await supabase
+        .from("profiles")
+        .upsert({
+          id: user.id,
+          email: user.email,
+          wallet: 0
+        });
+
+      if (error) {
+        console.log("Profile insert error:", error.message);
+      }
+    }
+  };
+
+  initUser();
+
+  const { data: authListener } = supabase.auth.onAuthStateChange(
     async (_event, session) => {
       const currentUser = session?.user ?? null;
 
       setUser(currentUser);
-      setLoading(false);
 
       if (!currentUser) {
         router.replace("/login");
       } else {
-        // ✅ NEW FIX: Ensure user exists in profiles table
+        // ✅ Ensure profile exists on login change
         const { error } = await supabase
           .from("profiles")
           .upsert({
@@ -47,7 +73,7 @@ useEffect(() => {
   );
 
   return () => {
-    authListener.data.subscription.unsubscribe();
+    authListener.subscription.unsubscribe();
   };
 }, []);
   // ✅ KEEP ALL HOOKS ABOVE (IMPORTANT)
