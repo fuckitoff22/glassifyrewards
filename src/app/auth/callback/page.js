@@ -4,21 +4,17 @@ import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function Callback() {
-
   useEffect(() => {
     const handleLogin = async () => {
       try {
-        // 🔥 exchange code
         await supabase.auth.exchangeCodeForSession();
 
-        // 🔥 force redirect (fixes 404 + routing issues)
-        setTimeout(() => {
-          window.location.href = "https://glassifyrapp.vercel.app/";
-        }, 300);
-
+        // ✅ ALWAYS SAFE
+        window.location.href = "/";
+        
       } catch (err) {
-        console.error("OAuth crash:", err);
-        window.location.href = "https://glassifyrapp.vercel.app/login";
+        console.error(err);
+        window.location.href = "/login";
       }
     };
 
