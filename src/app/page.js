@@ -445,17 +445,29 @@ function ProfilePage() {
     setMounted(true);
 
     // 🔥 GET USER FROM SUPABASE (ADDED)
-    supabase.auth.getUser().then(({ data }) => {
-      const user = data.user;
+ supabase.auth.getUser().then(({ data }) => {
+  const user = data.user;
 
-      if (user) {
-        setForm(prev => ({
-          ...prev,
-          name: user.user_metadata?.full_name || "",
-          email: user.email || ""
-        }));
-      }
-    });
+  if (user) {
+    // 🔥 Load user-specific profile from localStorage
+    const saved = JSON.parse(
+      localStorage.getItem("gr_profile_" + user.id) || "null"
+    );
+
+    if (saved) {
+      setProfile(saved);
+      setForm(saved);
+      setEditing(false);
+    } else {
+      // 🔥 fallback to Supabase user data
+      setForm(prev => ({
+        ...prev,
+        name: user.user_metadata?.full_name || "",
+        email: user.email || ""
+      }));
+    }
+  }
+});
 
     // Load profile
     const saved = JSON.parse(localStorage.getItem("gr_profile") || "null");
@@ -490,7 +502,8 @@ function ProfilePage() {
     }
 
     // keep localStorage
-    localStorage.setItem("gr_profile", JSON.stringify(form));
+  const { data } = await supabase.auth.getUser();
+localStorage.setItem("gr_profile_" + data.user.id, JSON.stringify(form));
 
     // 🔥 save to Supabase
     const { data } = await supabase.auth.getUser();
