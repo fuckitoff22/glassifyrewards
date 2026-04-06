@@ -14,22 +14,24 @@ export default function GlassifyApp() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        const currentUser = session?.user ?? null;
+ useEffect(() => {
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      const currentUser = session?.user ?? null;
 
-        setUser(currentUser);
-        setLoading(false);
+      setUser(currentUser);
+      setLoading(false);
 
-        if (!currentUser) {
-          router.replace("/login");
-        }
+      if (!currentUser) {
+        router.replace("/login");
       }
-    );
+    }
+  );
 
-    return () => listener.subscription.unsubscribe();
-  }, []);
+  return () => {
+    listener.subscription.unsubscribe();
+  };
+}, []);
 
   // ⏳ loading state
   if (loading) {
