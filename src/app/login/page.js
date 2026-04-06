@@ -3,6 +3,8 @@
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
+  return <div>Login Page</div>;
+}
 
   const handleLogin = async () => {
     await supabase.auth.signInWithOAuth({
