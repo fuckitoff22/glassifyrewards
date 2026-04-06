@@ -7,48 +7,38 @@ import { User, X, ExternalLink, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
-
 export default function GlassifyApp() {
   const router = useRouter();
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-useEffect(() => {
-  const authListener = supabase.auth.onAuthStateChange(
-    (_event, session) => {
-      const currentUser = session?.user ?? null;
+  const [page, setPage] = useState("dashboard");
+  const [chatOpen, setChatOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [darkMode, setDarkMode] = useState(false);
 
-      setUser(currentUser);
-      setLoading(false);
+  // ✅ FIXED AUTH (no crash, no loop)
+  useEffect(() => {
+    const authListener = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        const currentUser = session?.user ?? null;
 
-      if (!currentUser) {
-        router.replace("/login");
+        setUser(currentUser);
+        setLoading(false);
+
+        if (!currentUser) {
+          router.replace("/login");
+        }
       }
-    }
-  );
+    );
 
-  return () => {
-    authListener.data.subscription.unsubscribe();
-  };
-}, []);
-  // 🔥 VERY IMPORTANT (PREVENT CRASH)
-if (loading) {
-  return (
-    <div className="h-screen flex items-center justify-center text-lg">
-      Loading...
-    </div>
-  );
-}
+    return () => {
+      authListener.data.subscription.unsubscribe();
+    };
+  }, []);
 
-if (!user) {
-  return (
-    <div className="h-screen flex items-center justify-center text-lg">
-      Redirecting to login...
-    </div>
-  );
-}
-  // 👇 KEEP ALL YOUR EXISTING CODE BELOW (NO CHANGE)
+  // ✅ KEEP ALL HOOKS ABOVE (IMPORTANT)
   useEffect(() => {
     let stored = JSON.parse(localStorage.getItem("gr_tasks") || "[]");
 
@@ -63,11 +53,24 @@ if (!user) {
     localStorage.setItem("gr_tasks", JSON.stringify(merged));
   }, []);
 
-  const [page, setPage] = useState("dashboard");
-  const [chatOpen, setChatOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [darkMode, setDarkMode] = useState(false);
+  // ✅ SAFE RENDER (after hooks)
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center text-lg">
+        Loading...
+      </div>
+    );
+  }
 
+  if (!user) {
+    return (
+      <div className="h-screen flex items-center justify-center text-lg">
+        Redirecting to login...
+      </div>
+    );
+  }
+
+  // ✅ UI (UNCHANGED)
   return (
     <div className={`min-h-screen p-4 ${darkMode 
         ? "bg-gradient-to-br from-black via-red-900 to-black text-white" 
@@ -79,7 +82,8 @@ if (!user) {
           <Button onClick={() => setPage("dashboard")}>Dashboard</Button>
           <Button onClick={() => setPage("tasks")}>Tasks</Button>
           <Button onClick={() => setPage("profile")}>Profile</Button>
-<Button onClick={() => setPage("transactions")}>Transactions</Button>
+          <Button onClick={() => setPage("transactions")}>Transactions</Button>
+
           <Button 
             onClick={() => setDarkMode(!darkMode)}
             className={`${darkMode ? "bg-red-500 text-white" : "bg-black text-white"}`}
@@ -92,8 +96,8 @@ if (!user) {
       {page === "dashboard" && <Dashboard />}
       {page === "tasks" && <TasksPage setChatOpen={setChatOpen} setSelectedTask={setSelectedTask} />}
       {page === "profile" && <ProfilePage />}
-{page === "transactions" && <TransactionsPage />}
-      {/* ✅ FLOATING + SHADOW FIXED */}
+      {page === "transactions" && <TransactionsPage />}
+
       <motion.div
         className="fixed bottom-6 right-6"
         animate={{ y: [0, -10, 0] }}
@@ -114,7 +118,6 @@ if (!user) {
     </div>
   );
 }
-
 // ---------------- Dashboard ----------------
 function Dashboard() {
   const [submissions, setSubmissions] = useState([]);
