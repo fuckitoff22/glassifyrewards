@@ -1,3 +1,4 @@
+/*
 "use client";
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient"; // ✅ ADD THIS
@@ -136,7 +137,7 @@ export default function AdminPanel() {
         <Button onClick={()=>setPage("payoff")}>Payoff</Button>
       </div>
 
-      {/* DASHBOARD */}
+      {/* DASHBOARD */ /*}
       {page==="dashboard" && (
         <div className="grid grid-cols-3 gap-4">
           <Card><CardContent className="p-4">Approved: {submissions.filter(s=>s.status==="approved").length}</CardContent></Card>
@@ -145,7 +146,7 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {/* USERS */}
+      {/* USERS */ /*}
       {page==="users" && (
         <Card>
           <CardContent className="p-4">
@@ -171,8 +172,8 @@ export default function AdminPanel() {
         </Card>
       )}
 
-      {/* SUBMISSIONS */}
-      {page==="submissions" && (
+      {/* SUBMISSIONS */ //}
+     /* {page==="submissions" && (
         <div className="grid gap-3">
           {submissions.filter(s=>s.status==="pending").map(s=> (
             <Card key={s.id}><CardContent className="p-3">
@@ -188,8 +189,8 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {/* PAYOFF */}
-      {page==="payoff" && (
+      {/* PAYOFF */  )                                       /*)
+     /* {page==="payoff" && (
         <Card>
           <CardContent className="p-4">
             {withdrawals.map(w=> (
