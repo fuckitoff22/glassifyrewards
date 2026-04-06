@@ -1,40 +1,54 @@
-const router = useRouter(); // ✅ ADD THIS
+"use client";
+import React, { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button"; 
+import { User, X, ExternalLink, MessageCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
-const [user, setUser] = useState(null);
-const [loading, setLoading] = useState(true);
 
-useEffect(() => {
+export default function GlassifyApp() {
 
-  // ✅ get session first
-  supabase.auth.getSession().then(({ data }) => {
-    const currentUser = data.session?.user ?? null;
+  const router = useRouter(); // ✅ ADD HERE
 
-    setUser(currentUser);
-    setLoading(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-    // 🔥 REDIRECT IF NOT LOGGED IN
-    if (!currentUser) {
-      router.push("/login");
-    }
-  });
+  // 🔥 AUTH LOGIC (PASTE HERE — TOP OF COMPONENT)
+  useEffect(() => {
 
-  // ✅ listen for changes (login/logout)
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    (_event, session) => {
-      const currentUser = session?.user ?? null;
+    supabase.auth.getSession().then(({ data }) => {
+      const currentUser = data.session?.user ?? null;
 
       setUser(currentUser);
+      setLoading(false);
 
-      // 🔥 HANDLE LOGOUT ALSO
       if (!currentUser) {
         router.push("/login");
       }
-    }
-  );
+    });
 
-  return () => listener.subscription.unsubscribe();
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        const currentUser = session?.user ?? null;
 
-}, []);
+        setUser(currentUser);
+
+        if (!currentUser) {
+          router.push("/login");
+        }
+      }
+    );
+
+    return () => listener.subscription.unsubscribe();
+
+  }, []);
+
+  // 🔥 VERY IMPORTANT (PREVENT CRASH)
+  if (loading) return null;
+
+  // 👇 KEEP ALL YOUR EXISTING CODE BELOW (NO CHANGE)
   useEffect(() => {
     let stored = JSON.parse(localStorage.getItem("gr_tasks") || "[]");
 
