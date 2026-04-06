@@ -5,25 +5,16 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 export default function CallbackPage() {
- "use client";
-
-import { useEffect } from "react";
-import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
-
-export default function CallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
     const handleAuth = async () => {
       console.log("CALLBACK START");
 
-      // ✅ wait for session to be ready
+      // wait for session to be ready
       await new Promise((res) => setTimeout(res, 1000));
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
 
       console.log("SESSION:", session);
 
