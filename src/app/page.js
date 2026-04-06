@@ -21,27 +21,33 @@ export default function GlassifyApp() {
   // ✅ FIXED AUTH + PROFILE SYNC (NO UI CHANGE)
 // ✅ FIXED AUTH + PROFILE SYNC (NO UI/UX CHANGE)
 useEffect(() => {
+  let isMounted = true;
+
   const initUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
 
-    setUser(user);
-    setLoading(false);
+      if (!isMounted) return;
 
-    if (!user) {
-      router.replace("/login");
-    } else {
-      // ✅ Ensure profile exists (RUNS ON REFRESH ALSO)
-      const { error } = await supabase
-        .from("profiles")
-        .upsert({
-          id: user.id,
-          email: user.email,
-          wallet: 0
-        });
+      setUser(user);
 
-      if (error) {
-        console.log("Profile insert error:", error.message);
+      if (!user) {
+        setLoading(false);
+        router.replace("/login");
+        return;
       }
+
+      // ✅ ensure profile exists
+      await supabase.from("profiles").upsert({
+        id: user.id,
+        email: user.email,
+        wallet: 0
+      });
+
+      setLoading(false);
+    } catch (err) {
+      console.log("Auth init error:", err);
+      setLoading(false);
     }
   };
 
@@ -51,28 +57,26 @@ useEffect(() => {
     async (_event, session) => {
       const currentUser = session?.user ?? null;
 
+      if (!isMounted) return;
+
       setUser(currentUser);
 
       if (!currentUser) {
         router.replace("/login");
       } else {
-        // ✅ Ensure profile exists on login
-        const { error } = await supabase
-          .from("profiles")
-          .upsert({
-            id: currentUser.id,
-            email: currentUser.email,
-            wallet: 0
-          });
-
-        if (error) {
-          console.log("Profile insert error:", error.message);
-        }
+        await supabase.from("profiles").upsert({
+          id: currentUser.id,
+          email: currentUser.email,
+          wallet: 0
+        });
       }
+
+      setLoading(false); // ✅ VERY IMPORTANT
     }
   );
 
   return () => {
+    isMounted = false;
     authListener.subscription.unsubscribe();
   };
 }, []);
