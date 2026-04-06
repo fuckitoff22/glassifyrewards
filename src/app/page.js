@@ -10,40 +10,41 @@ import { useRouter } from "next/navigation";
 
 export default function GlassifyApp() {
 
-  const router = useRouter(); // ✅ ADD HERE
+ const router = useRouter();
 
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+const [user, setUser] = useState(null);
+const [loading, setLoading] = useState(true);
 
-  // 🔥 AUTH LOGIC (PASTE HERE — TOP OF COMPONENT)
-  useEffect(() => {
+useEffect(() => {
+  const getUser = async () => {
+    const { data } = await supabase.auth.getSession();
+    const currentUser = data.session?.user ?? null;
 
-    supabase.auth.getSession().then(({ data }) => {
-      const currentUser = data.session?.user ?? null;
+    setUser(currentUser);
+    setLoading(false);
 
+    if (!currentUser) {
+      setTimeout(() => {
+        router.push("/login");
+      }, 100); // ✅ prevent crash
+    }
+  };
+
+  getUser();
+
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      const currentUser = session?.user ?? null;
       setUser(currentUser);
-      setLoading(false);
 
       if (!currentUser) {
         router.push("/login");
       }
-    });
+    }
+  );
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        const currentUser = session?.user ?? null;
-
-        setUser(currentUser);
-
-        if (!currentUser) {
-          router.push("/login");
-        }
-      }
-    );
-
-    return () => listener.subscription.unsubscribe();
-
-  }, []);
+  return () => listener.subscription.unsubscribe();
+}, []);
 
   // 🔥 VERY IMPORTANT (PREVENT CRASH)
   if (loading) return null;
