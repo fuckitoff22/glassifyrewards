@@ -15,7 +15,7 @@ export default function GlassifyApp() {
   const [loading, setLoading] = useState(true);
 
 useEffect(() => {
-  const { data: listener } = supabase.auth.onAuthStateChange(
+  const listener = supabase.auth.onAuthStateChange(
     (_event, session) => {
       const currentUser = session?.user ?? null;
 
@@ -29,7 +29,7 @@ useEffect(() => {
   );
 
   return () => {
-    listener.subscription.unsubscribe();
+    listener.data.subscription.unsubscribe();
   };
 }, []);
   // ⏳ loading state
