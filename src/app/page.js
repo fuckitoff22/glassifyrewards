@@ -15,7 +15,7 @@ export default function GlassifyApp() {
   const [loading, setLoading] = useState(true);
 
 useEffect(() => {
-  const listener = supabase.auth.onAuthStateChange(
+  const authListener = supabase.auth.onAuthStateChange(
     (_event, session) => {
       const currentUser = session?.user ?? null;
 
@@ -29,46 +29,8 @@ useEffect(() => {
   );
 
   return () => {
-    listener.data.subscription.unsubscribe();
+    authListener.data.subscription.unsubscribe();
   };
-}, []);
-  // ⏳ loading state
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        Loading...
-      </div>
-    );
-  }
-
-  // 🚫 block UI if not logged in
-  if (!user) return null;
-
-  // ✅ YOUR MAIN UI
-  return (
-    <div>
-      Welcome {user.email}
-    </div>
-  );
-}
-
-  getUser();
-
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    (_event, session) => {
-      const currentUser = session?.user ?? null;
-
-      setUser(currentUser);
-      setLoading(false);
-
-      // ✅ only redirect on logout
-      if (!currentUser) {
-        router.replace("/login");
-      }
-    }
-  );
-
-  return () => listener.subscription.unsubscribe();
 }, []);
   // 🔥 VERY IMPORTANT (PREVENT CRASH)
 if (loading) {
