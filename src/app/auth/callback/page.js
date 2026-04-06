@@ -2,26 +2,23 @@
 
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
 
 export default function Callback() {
-  const router = useRouter();
 
   useEffect(() => {
     const handleLogin = async () => {
       try {
-        // 🔥 exchange code (important)
+        // 🔥 exchange code
         await supabase.auth.exchangeCodeForSession();
 
-        // 🔥 DO NOT CHECK SESSION HERE
-        // just redirect to home
+        // 🔥 force redirect (fixes 404 + routing issues)
         setTimeout(() => {
-          router.replace("/");
-        }, 300); // small delay ensures session is ready
+          window.location.href = "https://glassifyrapp.vercel.app/";
+        }, 300);
 
       } catch (err) {
         console.error("OAuth crash:", err);
-        router.replace("/login");
+        window.location.href = "https://glassifyrapp.vercel.app/login";
       }
     };
 
