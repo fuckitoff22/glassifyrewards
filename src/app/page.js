@@ -482,13 +482,31 @@ function ProfilePage() {
 
   if (!mounted) return null;
 
-  const save = () => {
+  // 🔥 UPDATED SAVE FUNCTION (ONLY CHANGE)
+  const save = async () => {
     if (!form.name || !form.email || !form.details) {
       alert("Fill all fields");
       return;
     }
 
+    // keep localStorage
     localStorage.setItem("gr_profile", JSON.stringify(form));
+
+    // 🔥 save to Supabase
+    const { data } = await supabase.auth.getUser();
+
+    if (data?.user) {
+      await supabase.from("profiles").upsert([
+        {
+          id: data.user.id,
+          name: form.name,
+          email: form.email,
+          method: form.method,
+          details: form.details
+        }
+      ]);
+    }
+
     setProfile(form);
     setEditing(false);
   };
@@ -515,7 +533,6 @@ function ProfilePage() {
               className="w-full p-2 border rounded"
             />
 
-            {/* PAYMENT METHOD */}
             <select
               value={form.method}
               onChange={e => setForm({ ...form, method: e.target.value })}
@@ -526,7 +543,6 @@ function ProfilePage() {
               <option value="bank">Bank</option>
             </select>
 
-            {/* DYNAMIC INPUT */}
             <input
               placeholder={
                 form.method === "upi"
