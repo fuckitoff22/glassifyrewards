@@ -9,19 +9,24 @@ export default function Callback() {
 
   useEffect(() => {
     const handleLogin = async () => {
-      const { data, error } = await supabase.auth.getSession();
+      try {
+        // 🔥 THIS IS THE FIX
+        const { data, error } = await supabase.auth.exchangeCodeForSession();
 
-      if (error) {
-        console.error(error);
-        router.replace("/login");
-        return;
-      }
+        if (error) {
+          console.error("OAuth error:", error);
+          router.replace("/login");
+          return;
+        }
 
-      if (data?.session) {
-        // ✅ SUCCESS LOGIN
-        router.replace("/");
-      } else {
-        // ❌ FAILED LOGIN
+        if (data?.session) {
+          router.replace("/"); // ✅ success
+        } else {
+          router.replace("/login");
+        }
+
+      } catch (err) {
+        console.error("Crash:", err);
         router.replace("/login");
       }
     };
