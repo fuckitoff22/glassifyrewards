@@ -19,59 +19,53 @@ export default function GlassifyApp() {
   const [darkMode, setDarkMode] = useState(false);
 
   // ✅ FIXED AUTH + PROFILE SYNC (NO UI CHANGE)
+// ✅ FINAL STABLE AUTH + PROFILE SYNC (NO UI CHANGE)
 useEffect(() => {
   let isMounted = true;
 
-  const init = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+  // ✅ Listen FIRST (primary control)
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    async (_event, session) => {
+      if (!isMounted) return;
+
+      const currentUser = session?.user ?? null;
+
+      setUser(currentUser);
+      setLoading(false); // ✅ ALWAYS stop loading here
+
+      if (!currentUser) {
+        router.replace("/login");
+        return;
+      }
+
+      // ✅ Ensure profile exists
+      const { error } = await supabase
+        .from("profiles")
+        .upsert({
+          id: currentUser.id,
+          email: currentUser.email,
+          wallet: 0
+        });
+
+      if (error) {
+        console.log("UPSERT ERROR:", error.message);
+      }
+    }
+  );
+
+  // ✅ Backup session check (runs once)
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (!isMounted) return;
 
     const currentUser = session?.user ?? null;
-
-    if (!isMounted) return;
 
     setUser(currentUser);
     setLoading(false);
 
     if (!currentUser) {
       router.replace("/login");
-      return;
     }
-
-    // ✅ ensure profile exists
-    const { error } = await supabase
-      .from("profiles")
-      .upsert({
-        id: currentUser.id,
-        email: currentUser.email,
-        wallet: 0
-      });
-
-    if (error) {
-      console.log("UPSERT ERROR:", error.message);
-    }
-  };
-
-  init();
-
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    async (_event, session) => {
-      const currentUser = session?.user ?? null;
-
-      if (!isMounted) return;
-
-      setUser(currentUser);
-
-      if (!currentUser) {
-        router.replace("/login");
-      } else {
-        await supabase.from("profiles").upsert({
-          id: currentUser.id,
-          email: currentUser.email,
-          wallet: 0
-        });
-      }
-    }
-  );
+  });
 
   return () => {
     isMounted = false;
