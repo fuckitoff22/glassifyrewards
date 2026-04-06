@@ -9,17 +9,36 @@ import { useRouter } from "next/navigation";
 
 export default function GlassifyApp() {
 
-  useEffect(() => {
-  const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-    
-    if (session?.user) {
-      setUser(session.user); // ✅ user logged in
-    } else {
-      window.location.href = "/login"; // ❌ only if no session
-    }
+ const [user, setUser] = useState(null);
+const [loading, setLoading] = useState(true);
 
+useEffect(() => {
+
+  // ✅ get session first
+  supabase.auth.getSession().then(({ data }) => {
+    setUser(data.session?.user ?? null);
+    setLoading(false);
   });
 
+  // ✅ listen for changes (login/logout)
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      setUser(session?.user ?? null);
+    }
+  );
+
+  return () => listener.subscription.unsubscribe();
+
+}, []);
+
+// ⛔ wait until session is ready
+if (loading) return null;
+
+// 🔐 redirect if not logged in
+if (!user) {
+  window.location.href = "/login";
+  return null;
+}
   return () => listener.subscription.unsubscribe();
 }, []);
 
