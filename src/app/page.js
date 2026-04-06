@@ -14,7 +14,6 @@ export default function GlassifyApp() {
 
 const [user, setUser] = useState(null);
 const [loading, setLoading] = useState(true);
-
 useEffect(() => {
   const getUser = async () => {
     const { data } = await supabase.auth.getSession();
@@ -23,10 +22,14 @@ useEffect(() => {
     setUser(currentUser);
     setLoading(false);
 
+    // ❌ REMOVE IMMEDIATE REDIRECT
+    // ✅ Only redirect if we are SURE no session
     if (!currentUser) {
       setTimeout(() => {
-        router.push("/login");
-      }, 100); // ✅ prevent crash
+        if (!currentUser) {
+          router.replace("/login");
+        }
+      }, 500); // 🔥 increased delay
     }
   };
 
@@ -35,17 +38,19 @@ useEffect(() => {
   const { data: listener } = supabase.auth.onAuthStateChange(
     (_event, session) => {
       const currentUser = session?.user ?? null;
-      setUser(currentUser);
 
+      setUser(currentUser);
+      setLoading(false);
+
+      // ✅ only redirect on logout
       if (!currentUser) {
-        router.push("/login");
+        router.replace("/login");
       }
     }
   );
 
   return () => listener.subscription.unsubscribe();
 }, []);
-
   // 🔥 VERY IMPORTANT (PREVENT CRASH)
 if (loading) {
   return (
