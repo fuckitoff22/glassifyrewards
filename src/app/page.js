@@ -19,7 +19,7 @@ export default function GlassifyApp() {
   const [darkMode, setDarkMode] = useState(false);
 
   // ✅ FIXED AUTH + PROFILE SYNC (NO UI CHANGE)
-// ✅ FIXED AUTH + PROFILE SYNC (FULLY RELIABLE)
+// ✅ FIXED AUTH + PROFILE SYNC (NO UI/UX CHANGE)
 useEffect(() => {
   const initUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -30,7 +30,7 @@ useEffect(() => {
     if (!user) {
       router.replace("/login");
     } else {
-      // ✅ Ensure profile exists
+      // ✅ Ensure profile exists (RUNS ON REFRESH ALSO)
       const { error } = await supabase
         .from("profiles")
         .upsert({
@@ -56,7 +56,7 @@ useEffect(() => {
       if (!currentUser) {
         router.replace("/login");
       } else {
-        // ✅ Ensure profile exists on login change
+        // ✅ Ensure profile exists on login
         const { error } = await supabase
           .from("profiles")
           .upsert({
