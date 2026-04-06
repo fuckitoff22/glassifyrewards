@@ -5,30 +5,44 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 export default function CallbackPage() {
+ "use client";
+
+import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
+
+export default function CallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
     const handleAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      console.log("CALLBACK START");
+
+      // ✅ wait for session to be ready
+      await new Promise((res) => setTimeout(res, 1000));
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      console.log("SESSION:", session);
 
       const user = session?.user;
 
       if (user) {
-        // ✅ CREATE USER IN DB
         const { error } = await supabase
           .from("profiles")
           .upsert({
             id: user.id,
             email: user.email,
-            wallet: 0
+            wallet: 0,
           });
 
-        if (error) {
-          console.log("PROFILE CREATE ERROR:", error.message);
-        }
+        console.log("UPSERT RESULT:", error);
+      } else {
+        console.log("NO USER FOUND ❌");
       }
 
-      // ✅ redirect to main app
       router.replace("/");
     };
 
