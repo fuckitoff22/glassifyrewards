@@ -3,15 +3,19 @@
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
-  
 
   const handleLogin = async () => {
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: "https://glassifyrapp.vercel.app/auth/callback"
       }
     });
+
+    if (error) {
+      console.log("Login Error:", error.message);
+      alert("Login failed");
+    }
   };
 
   return (
