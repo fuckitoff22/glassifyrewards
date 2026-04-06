@@ -493,51 +493,53 @@ function ProfilePage() {
 
   // ✅ FIXED SAVE FUNCTION
   const save = async () => {
-    try {
-      if (!form.name || !form.email || !form.details) {
-        alert("Fill all fields");
-        return;
-      }
-
-      // 🔥 USE STATE USER (NO MORE getUser AGAIN)
-      if (!user) {
-        alert("User not ready, wait a second ⏳");
-        return;
-      }
-
-      // 🔥 UPDATE UI FIRST (IMPORTANT)
-      setProfile(form);
-      setEditing(false);
-
-      // 🔥 SAVE LOCAL
-      localStorage.setItem(
-        "gr_profile_" + user.id,
-        JSON.stringify(form)
-      );
-
-      // 🔥 SAVE TO SUPABASE (background)
-      const { error } = await supabase.from("profiles").upsert([
-        {
-          id: user.id,
-          name: form.name,
-          email: form.email,
-          method: form.method,
-          details: form.details
-        }
-      ]);
-
-      if (error) {
-        console.error(error);
-      }
-
-      alert("Saved successfully ✅");
-
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong ❌");
+  try {
+    if (!form.name || !form.email || !form.details) {
+      alert("Fill all fields");
+      return;
     }
-  };
 
+    // 🔥 ALWAYS FETCH FRESH USER (NO STATE DEPENDENCE)
+    const { data } = await supabase.auth.getUser();
+    const currentUser = data?.user;
+
+    if (!currentUser) {
+      alert("Login session not found ❌");
+      return;
+    }
+
+    // ✅ INSTANT UI UPDATE
+    setProfile(form);
+    setEditing(false);
+
+    // ✅ SAVE LOCAL
+    localStorage.setItem(
+      "gr_profile_" + currentUser.id,
+      JSON.stringify(form)
+    );
+
+    // ✅ SAVE TO SUPABASE
+    const { error } = await supabase.from("profiles").upsert([
+      {
+        id: currentUser.id,
+        name: form.name,
+        email: form.email,
+        method: form.method,
+        details: form.details
+      }
+    ]);
+
+    if (error) {
+      console.error(error);
+    }
+
+    alert("Saved successfully ✅");
+
+  } catch (err) {
+    console.error(err);
+    alert("Something went wrong ❌");
+  }
+};
   return (
     <div className="max-w-md mx-auto space-y-4">
 
