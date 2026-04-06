@@ -47,11 +47,21 @@ useEffect(() => {
 }, []);
 
   // 🔥 VERY IMPORTANT (PREVENT CRASH)
-if (loading) return (
-  <div className="h-screen flex items-center justify-center">
-    Loading...
-  </div>
-);
+if (loading) {
+  return (
+    <div className="h-screen flex items-center justify-center text-lg">
+      Loading...
+    </div>
+  );
+}
+
+if (!user) {
+  return (
+    <div className="h-screen flex items-center justify-center text-lg">
+      Redirecting to login...
+    </div>
+  );
+}
   // 👇 KEEP ALL YOUR EXISTING CODE BELOW (NO CHANGE)
   useEffect(() => {
     let stored = JSON.parse(localStorage.getItem("gr_tasks") || "[]");
