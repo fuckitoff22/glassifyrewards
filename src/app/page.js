@@ -445,11 +445,10 @@ function ProfilePage() {
     setMounted(true);
 
     // 🔥 GET USER FROM SUPABASE (ADDED)
- supabase.auth.getUser().then(({ data }) => {
+supabase.auth.getUser().then(({ data }) => {
   const user = data.user;
 
   if (user) {
-    // 🔥 Load user-specific profile from localStorage
     const saved = JSON.parse(
       localStorage.getItem("gr_profile_" + user.id) || "null"
     );
@@ -459,12 +458,13 @@ function ProfilePage() {
       setForm(saved);
       setEditing(false);
     } else {
-      // 🔥 fallback to Supabase user data
-      setForm(prev => ({
-        ...prev,
+      // 🔥 ONLY FIRST TIME
+      setForm({
         name: user.user_metadata?.full_name || "",
-        email: user.email || ""
-      }));
+        email: user.email || "",
+        method: "upi",
+        details: ""
+      });
     }
   }
 });
