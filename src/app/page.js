@@ -47,8 +47,11 @@ useEffect(() => {
 }, []);
 
   // 🔥 VERY IMPORTANT (PREVENT CRASH)
-  if (loading) return null;
-
+if (loading) return (
+  <div className="h-screen flex items-center justify-center">
+    Loading...
+  </div>
+);
   // 👇 KEEP ALL YOUR EXISTING CODE BELOW (NO CHANGE)
   useEffect(() => {
     let stored = JSON.parse(localStorage.getItem("gr_tasks") || "[]");
