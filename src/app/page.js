@@ -441,33 +441,50 @@ function ProfilePage() {
 
   const [balance, setBalance] = useState(0);
 
-  useEffect(() => {
-    setMounted(true);
+useEffect(() => {
+  setMounted(true);
 
-    // 🔥 GET USER FROM SUPABASE (UPDATED)
-    supabase.auth.getUser().then(({ data }) => {
-      const user = data.user;
+  const loadUser = async () => {
+    const { data } = await supabase.auth.getUser();
+    const user = data?.user;
 
-      if (user) {
-        const saved = JSON.parse(
-          localStorage.getItem("gr_profile_" + user.id) || "null"
-        );
+    if (user) {
+      const saved = JSON.parse(
+        localStorage.getItem("gr_profile_" + user.id) || "null"
+      );
 
-        if (saved) {
-          setProfile(saved);
-          setForm(saved);
-          setEditing(false);
-        } else {
-          // 🔥 ONLY FIRST TIME
-          setForm({
-            name: user.user_metadata?.full_name || "",
-            email: user.email || "",
-            method: "upi",
-            details: ""
-          });
-        }
+      if (saved) {
+        setProfile(saved);
+        setForm(saved);
+        setEditing(false);
+      } else {
+        setForm({
+          name: user.user_metadata?.full_name || "",
+          email: user.email || "",
+          method: "upi",
+          details: ""
+        });
       }
-    });
+    }
+
+    // wallet logic (unchanged)
+    const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
+    const withdrawals = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
+
+    const approved = subs.filter(s => s.status === "approved");
+
+    const totalEarn = approved.reduce((a, s) => a + (s.task?.reward || 0), 0);
+
+    const totalWithdrawn = withdrawals
+      .filter(w => w.status === "approved")
+      .reduce((a, w) => a + w.amount, 0);
+
+    setBalance(totalEarn - totalWithdrawn);
+  };
+
+  loadUser();
+
+}, []);
 
     // Load wallet balance (unchanged)
     const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
