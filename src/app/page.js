@@ -444,6 +444,19 @@ function ProfilePage() {
   useEffect(() => {
     setMounted(true);
 
+    // 🔥 GET USER FROM SUPABASE (ADDED)
+    supabase.auth.getUser().then(({ data }) => {
+      const user = data.user;
+
+      if (user) {
+        setForm(prev => ({
+          ...prev,
+          name: user.user_metadata?.full_name || "",
+          email: user.email || ""
+        }));
+      }
+    });
+
     // Load profile
     const saved = JSON.parse(localStorage.getItem("gr_profile") || "null");
     if (saved) {
@@ -544,15 +557,15 @@ function ProfilePage() {
             <div className="flex gap-2">
               <Button onClick={() => setEditing(true)}>Edit</Button>
 
-             <Button
-  className="bg-red-500 text-white"
-  onClick={async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/login"; // ✅ go to login page
-  }}
->
-  Logout
-</Button>
+              <Button
+                className="bg-red-500 text-white"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  window.location.href = "/login";
+                }}
+              >
+                Logout
+              </Button>
             </div>
           </>
         )}
@@ -571,28 +584,27 @@ function ProfilePage() {
             className="w-full p-2 border rounded"
           />
 
-         <Button
-  onClick={async () => {  // ✅ MAKE FUNCTION ASYNC
+          <Button
+            onClick={async () => {
 
-    const amount = Number(document.getElementById("withdrawAmount").value);
+              const amount = Number(document.getElementById("withdrawAmount").value);
 
-    if (!amount || amount <= 0) {
-      alert("Enter valid amount");
-      return;
-    }
+              if (!amount || amount <= 0) {
+                alert("Enter valid amount");
+                return;
+              }
 
-    await supabase.from("withdrawals").insert([
-      {
-        user_email: profile.email,
-        amount: amount,
-        status: "pending"
-      }
-    ]);
+              await supabase.from("withdrawals").insert([
+                {
+                  user_email: profile.email,
+                  amount: amount,
+                  status: "pending"
+                }
+              ]);
 
-    alert("Withdrawal Requested ✅");
-  }}
->
-          
+              alert("Withdrawal Requested ✅");
+            }}
+          >
             Withdraw
           </Button>
 
