@@ -30,32 +30,51 @@ useEffect(() => {
       const currentUser = session?.user ?? null;
 
       setUser(currentUser);
-      setLoading(false); // ✅ ALWAYS stop loading here
+      setLoading(false); // ✅ ALWAYS stop loading
 
       if (!currentUser) {
         router.replace("/login");
       } else {
-        // ensure profile exists
-        await supabase.from("profiles").upsert({
-          id: currentUser.id,
-          email: currentUser.email,
-          wallet: 0
-        });
+        // ✅ FIX: ensure profile exists (NO FAIL SILENTLY)
+        const { error } = await supabase
+          .from("profiles")
+          .upsert({
+            id: currentUser.id,
+            email: currentUser.email,
+            wallet: 0
+          });
+
+        if (error) {
+          console.log("UPSERT ERROR:", error.message);
+        }
       }
     }
   );
 
   // ✅ ALSO fetch session (backup)
-  supabase.auth.getSession().then(({ data: { session } }) => {
+  supabase.auth.getSession().then(async ({ data: { session } }) => {
     if (!isMounted) return;
 
     const currentUser = session?.user ?? null;
 
     setUser(currentUser);
-    setLoading(false); // ✅ IMPORTANT
+    setLoading(false);
 
     if (!currentUser) {
       router.replace("/login");
+    } else {
+      // ✅ FIX: also ensure profile on refresh
+      const { error } = await supabase
+        .from("profiles")
+        .upsert({
+          id: currentUser.id,
+          email: currentUser.email,
+          wallet: 0
+        });
+
+      if (error) {
+        console.log("UPSERT ERROR:", error.message);
+      }
     }
   });
 
