@@ -5,11 +5,12 @@ export default function LoginPage() {
 
   const googleLogin = async () => {
     await supabase.auth.signInWithOAuth({
-  provider: "google",
-  options: {
-    redirectTo: "https://glassifyrapp.vercel.app" // 🔥 YOUR DOMAIN
-  }
-});
+      provider: "google",
+      options: {
+        redirectTo: "https://glassifyrapp.vercel.app"
+      }
+    });
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
@@ -32,6 +33,7 @@ export default function LoginPage() {
         </button>
 
       </div>
+
     </div>
   );
 }
