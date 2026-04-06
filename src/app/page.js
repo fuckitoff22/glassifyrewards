@@ -1,37 +1,40 @@
-"use client";
-import React, { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { User, X, ExternalLink, MessageCircle } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+const router = useRouter(); // ✅ ADD THIS
 
-export default function GlassifyApp() {
-
- const [user, setUser] = useState(null);
+const [user, setUser] = useState(null);
 const [loading, setLoading] = useState(true);
 
 useEffect(() => {
 
   // ✅ get session first
   supabase.auth.getSession().then(({ data }) => {
-    setUser(data.session?.user ?? null);
+    const currentUser = data.session?.user ?? null;
+
+    setUser(currentUser);
     setLoading(false);
+
+    // 🔥 REDIRECT IF NOT LOGGED IN
+    if (!currentUser) {
+      router.push("/login");
+    }
   });
 
   // ✅ listen for changes (login/logout)
   const { data: listener } = supabase.auth.onAuthStateChange(
     (_event, session) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+
+      setUser(currentUser);
+
+      // 🔥 HANDLE LOGOUT ALSO
+      if (!currentUser) {
+        router.push("/login");
+      }
     }
   );
 
   return () => listener.subscription.unsubscribe();
 
 }, []);
-
-
   useEffect(() => {
     let stored = JSON.parse(localStorage.getItem("gr_tasks") || "[]");
 
