@@ -502,12 +502,11 @@ function ProfilePage() {
     }
 
     // keep localStorage
-  const { data: userData } = await supabase.auth.getUser();
-localStorage.setItem("gr_profile_" + data.user.id, JSON.stringify(form));
-
-    // 🔥 save to Supabase
     const { data } = await supabase.auth.getUser();
-
+localStorage.setItem("gr_profile_" + data.user.id, JSON.stringify(form));
+    // 🔥 save to Supabase
+ 
+ const { data: userData } = await supabase.auth.getUser();
     if (data?.user) {
       await supabase.from("profiles").upsert([
         {
