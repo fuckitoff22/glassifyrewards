@@ -22,65 +22,60 @@ export default function GlassifyApp() {
 useEffect(() => {
   let isMounted = true;
 
-  // ✅ Listen FIRST (important)
-  const { data: authListener } = supabase.auth.onAuthStateChange(
-    async (_event, session) => {
-      if (!isMounted) return;
-
-      const currentUser = session?.user ?? null;
-
-      setUser(currentUser);
-      setLoading(false); // ✅ ALWAYS stop loading
-
-      if (!currentUser) {
-        router.replace("/login");
-      } else {
-        // ✅ FIX: ensure profile exists (NO FAIL SILENTLY)
-        const { error } = await supabase
-          .from("profiles")
-          .upsert({
-            id: currentUser.id,
-            email: currentUser.email,
-            wallet: 0
-          });
-
-        if (error) {
-          console.log("UPSERT ERROR:", error.message);
-        }
-      }
-    }
-  );
-
-  // ✅ ALSO fetch session (backup)
-  supabase.auth.getSession().then(async ({ data: { session } }) => {
-    if (!isMounted) return;
+  const init = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
 
     const currentUser = session?.user ?? null;
+
+    if (!isMounted) return;
 
     setUser(currentUser);
     setLoading(false);
 
     if (!currentUser) {
       router.replace("/login");
-    } else {
-      // ✅ FIX: also ensure profile on refresh
-      const { error } = await supabase
-        .from("profiles")
-        .upsert({
+      return;
+    }
+
+    // ✅ ensure profile exists
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({
+        id: currentUser.id,
+        email: currentUser.email,
+        wallet: 0
+      });
+
+    if (error) {
+      console.log("UPSERT ERROR:", error.message);
+    }
+  };
+
+  init();
+
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    async (_event, session) => {
+      const currentUser = session?.user ?? null;
+
+      if (!isMounted) return;
+
+      setUser(currentUser);
+
+      if (!currentUser) {
+        router.replace("/login");
+      } else {
+        await supabase.from("profiles").upsert({
           id: currentUser.id,
           email: currentUser.email,
           wallet: 0
         });
-
-      if (error) {
-        console.log("UPSERT ERROR:", error.message);
       }
     }
-  });
+  );
 
   return () => {
     isMounted = false;
-    authListener.subscription.unsubscribe();
+    listener.subscription.unsubscribe();
   };
 }, []);
   // ✅ KEEP ALL HOOKS ABOVE (IMPORTANT)
