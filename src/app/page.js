@@ -400,8 +400,7 @@ function Chatbot({ close, selectedTask }) {
 }
 
       // ✅ Better file naming (user-wise folder)
-      const fileName = `${user}/${Date.now()}-${file.name}`;
-
+    const fileName = `${Date.now()}-${file.name}`;
       // ✅ Upload to correct bucket (submissions)
       const { error } = await supabase.storage
         .from("submissions")
