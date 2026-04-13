@@ -22,6 +22,13 @@ export default function AdminPanel() {
     subtype:"",
     logo:null
   });
+  useEffect(() => {
+  const key = new URLSearchParams(window.location.search).get("key");
+
+  if (key !== process.env.NEXT_PUBLIC_ADMIN_KEY) {
+    document.body.innerHTML = "Not authorized";
+  }
+}, []);
 
   // ================= LOAD =================
   const load = async () => {
