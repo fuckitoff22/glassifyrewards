@@ -637,15 +637,15 @@ function ProfilePage() {
     );
 
     // ✅ SAVE TO SUPABASE
-    const { error } = await supabase.from("profiles").upsert([
-      {
-        id: currentUser.id,
-        name: form.name,
-        email: form.email,
-        method: form.method,
-        details: form.details
-      }
-    ]);
+   await supabase.from("profiles").upsert([
+  {
+    id: currentUser.id,
+    name: form.name || "",
+    email: form.email || "",
+    method: form.method || "upi",
+    details: form.details || ""
+  }
+]);
 
     if (error) {
       console.error(error);
