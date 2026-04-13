@@ -542,6 +542,7 @@ function Chatbot({ close, selectedTask }) {
   );
 }
 // ---------------- Profile ----------------
+// ---------------- Profile ----------------
 function ProfilePage() {
   const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(true);
@@ -710,6 +711,7 @@ function ProfilePage() {
     </div>
   );
 }
+
 // ---------------- TransactionPage ----------------
 function TransactionsPage() {
   const [withdrawals, setWithdrawals] = useState([]);
@@ -758,7 +760,8 @@ function TransactionsPage() {
 
           </CardContent>
         </Card>
-    ))}
-</div>
-);
-)
+      ))}
+
+    </div>
+  );
+}
