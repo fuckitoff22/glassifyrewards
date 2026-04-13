@@ -11,9 +11,18 @@ export default function AdminPage() {
 
   const [allowed, setAllowed] = useState(false);
   const [submissions, setSubmissions] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
 
-  // 🔐 PROTECT ROUTE
+  const [newTask, setNewTask] = useState({
+    title: "",
+    reward: "",
+    link: "",
+    type: "normal"
+  });
+
+  // 🔐 ACCESS CONTROL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const key = params.get("key");
@@ -26,31 +35,42 @@ export default function AdminPage() {
     }
   }, []);
 
-  // 📦 LOAD DATA
+  // 🔄 LOAD ALL DATA
   const loadData = async () => {
-    // submissions from DB
-    const { data, error } = await supabase
-  .from("submissions")
-  .select("*")
-  .order("created_at", { ascending: false });
+    // submissions
+    const { data: subData } = await supabase
+      .from("submissions")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-console.log("ADMIN DATA:", data);
-    if (data) setSubmissions(data);
+    setSubmissions(subData || []);
 
-    // withdrawals from localStorage
+    // users
+    const { data: userData } = await supabase
+      .from("profiles")
+      .select("*");
+
+    setUsers(userData || []);
+
+    // tasks
+    const { data: taskData } = await supabase
+      .from("tasks")
+      .select("*");
+
+    setTasks(taskData || []);
+
+    // withdrawals (localStorage)
     const w = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
     setWithdrawals(w);
   };
 
   // ✅ APPROVE TASK
   const approveTask = async (item) => {
-    // update status
     await supabase
       .from("submissions")
       .update({ status: "approved" })
       .eq("id", item.id);
 
-    // 💰 ADD WALLET
     const { data: profile } = await supabase
       .from("profiles")
       .select("*")
@@ -61,12 +81,12 @@ console.log("ADMIN DATA:", data);
       await supabase
         .from("profiles")
         .update({
-          wallet: (profile.wallet || 0) + 50 // 🔥 you can dynamic later
+          wallet: (profile.wallet || 0) + 50
         })
         .eq("id", item.user_id);
     }
 
-    alert("Approved + Reward added ✅");
+    alert("Approved + reward added ✅");
     loadData();
   };
 
@@ -81,20 +101,66 @@ console.log("ADMIN DATA:", data);
     loadData();
   };
 
-  // 💸 WITHDRAW APPROVE
+  // 👤 BAN / UNBAN
+  const banUser = async (id) => {
+    await supabase.from("profiles").update({ status: "banned" }).eq("id", id);
+    loadData();
+  };
+
+  const unbanUser = async (id) => {
+    await supabase.from("profiles").update({ status: "active" }).eq("id", id);
+    loadData();
+  };
+
+  // ⏳ SUSPEND (1 hour)
+  const suspendUser = async (id) => {
+    const until = new Date(Date.now() + 60 * 60 * 1000);
+
+    await supabase
+      .from("profiles")
+      .update({ suspended_until: until })
+      .eq("id", id);
+
+    loadData();
+  };
+
+  // 🧾 CREATE TASK
+  const createTask = async () => {
+    if (!newTask.title || !newTask.reward) {
+      alert("Fill task fields ❌");
+      return;
+    }
+
+    await supabase.from("tasks").insert([
+      {
+        title: newTask.title,
+        reward: Number(newTask.reward),
+        link: newTask.link,
+        type: newTask.type
+      }
+    ]);
+
+    setNewTask({ title: "", reward: "", link: "", type: "normal" });
+    loadData();
+  };
+
+  // 🗑 DELETE TASK
+  const deleteTask = async (id) => {
+    await supabase.from("tasks").delete().eq("id", id);
+    loadData();
+  };
+
+  // 💸 WITHDRAW ACTIONS
   const approveWithdraw = (i) => {
     const updated = [...withdrawals];
     updated[i].status = "approved";
-
     localStorage.setItem("gr_withdrawals", JSON.stringify(updated));
     setWithdrawals(updated);
   };
 
-  // ❌ WITHDRAW REJECT
   const rejectWithdraw = (i) => {
     const updated = [...withdrawals];
     updated[i].status = "rejected";
-
     localStorage.setItem("gr_withdrawals", JSON.stringify(updated));
     setWithdrawals(updated);
   };
@@ -106,7 +172,43 @@ console.log("ADMIN DATA:", data);
 
       <h1 className="text-xl font-bold">Admin Panel</h1>
 
-      {/* 🧾 SUBMISSIONS */}
+      {/* 🧾 TASKS */}
+      <div>
+        <h2 className="font-semibold mb-2">Tasks</h2>
+
+        <div className="flex gap-2 mb-3">
+          <input
+            placeholder="Title"
+            value={newTask.title}
+            onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+            className="border p-1"
+          />
+          <input
+            placeholder="Reward"
+            value={newTask.reward}
+            onChange={(e) => setNewTask({ ...newTask, reward: e.target.value })}
+            className="border p-1"
+          />
+          <input
+            placeholder="Link"
+            value={newTask.link}
+            onChange={(e) => setNewTask({ ...newTask, link: e.target.value })}
+            className="border p-1"
+          />
+          <Button onClick={createTask}>Add</Button>
+        </div>
+
+        {tasks.map((t) => (
+          <Card key={t.id} className="mb-2">
+            <CardContent className="p-2 flex justify-between">
+              <span>{t.title} (₹{t.reward})</span>
+              <Button onClick={() => deleteTask(t.id)}>Delete</Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* 📸 SUBMISSIONS */}
       <div>
         <h2 className="font-semibold mb-2">Submissions</h2>
 
@@ -118,13 +220,40 @@ console.log("ADMIN DATA:", data);
               <p><b>Task:</b> {s.task_name}</p>
               <p><b>Status:</b> {s.status}</p>
 
-              <img src={s.image_url} className="w-40 rounded" />
+              <img
+                src={s.image_url}
+                alt="proof"
+                className="w-40 rounded border"
+              />
 
               <div className="flex gap-2">
                 <Button onClick={() => approveTask(s)}>Approve</Button>
                 <Button onClick={() => rejectTask(s)} variant="destructive">
                   Reject
                 </Button>
+              </div>
+
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* 👤 USERS */}
+      <div>
+        <h2 className="font-semibold mb-2">Users</h2>
+
+        {users.map((u) => (
+          <Card key={u.id} className="mb-3">
+            <CardContent className="p-3 space-y-2">
+
+              <p>{u.email}</p>
+              <p>Wallet: ₹{u.wallet}</p>
+              <p>Status: {u.status || "active"}</p>
+
+              <div className="flex gap-2">
+                <Button onClick={() => banUser(u.id)}>Ban</Button>
+                <Button onClick={() => unbanUser(u.id)}>Unban</Button>
+                <Button onClick={() => suspendUser(u.id)}>Suspend</Button>
               </div>
 
             </CardContent>
