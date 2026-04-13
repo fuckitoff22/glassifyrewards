@@ -435,8 +435,7 @@ function Chatbot({ close, selectedTask }) {
       // ✅ Better file naming (user-wise folder)
     const fileName = `${Date.now()}-${file.name}`;
       // ✅ Upload to correct bucket (submissions)
-      const { error } = await supabase.storage
-        .from("screenshots")
+      const { error } = supabase.storage.from("screenshots") 
         .upload(fileName, file, {
           cacheControl: "3600",
           upsert: false,
@@ -449,8 +448,7 @@ function Chatbot({ close, selectedTask }) {
       }
 
       // ✅ Get public URL
-      const { data } = supabase.storage
-        .from("screenshots")
+      const { data } = supabase.storage.from("screenshots") 
         .getPublicUrl(fileName);
 
       const imageUrl = data?.publicUrl;
@@ -461,8 +459,7 @@ function Chatbot({ close, selectedTask }) {
       }
 
       // ✅ Insert into DB
-      const { error: dbError } = await supabase
-        .from("screenshots")
+      const { error: dbError } = await supabase.storage.from("screenshots") 
         .insert([
           {
             task_id: selectedTask.id,
@@ -617,26 +614,7 @@ const currentUser = sessionData?.session?.user;
     }
 
     // 🔥 ALWAYS FETCH FRESH USER (NO STATE DEPENDENCE)
-    const { data } = await supabase.auth.getUser();
-    const currentUser = data?.user;
-
-    if (!currentUser) {
-      alert("Login session not found ❌");
-      return;
-    }
-
-    // ✅ INSTANT UI UPDATE
-    setProfile(form);
-    setEditing(false);
-
-    // ✅ SAVE LOCAL
-    localStorage.setItem(
-      "gr_profile_" + currentUser.id,
-      JSON.stringify(form)
-    );
-
-    // ✅ SAVE TO SUPABASE
-   await supabase.from("profiles").upsert([
+   const { error } = await supabase.from("profiles").upsert([
   {
     id: currentUser.id,
     name: form.name || "",
@@ -646,17 +624,9 @@ const currentUser = sessionData?.session?.user;
   }
 ]);
 
-    if (error) {
-      console.error(error);
-    }
-
-    alert("Saved successfully ✅");
-
-  } catch (err) {
-  console.error("SAVE ERROR:", err);
-  alert(err.message || "Something went wrong ❌");
-}
-};
+if (error) {
+  console.error("DB ERROR:", error);
+  alert(error.message || "Save failed ❌");
   return (
     <div className="max-w-md mx-auto space-y-4">
 
