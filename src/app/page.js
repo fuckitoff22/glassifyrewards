@@ -788,8 +788,9 @@ function TransactionsPage() {
 
           </CardContent>
         </Card>
-      ))}
-
+    }
+</div>
+);
   
 
 
