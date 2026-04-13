@@ -611,6 +611,7 @@ function ProfilePage() {
   return (
     <div className="max-w-md mx-auto space-y-5 p-4">
 
+      {/* WALLET */}
       <div
         onClick={() => setShowWithdraw(true)}
         className="cursor-pointer rounded-2xl p-4 bg-white/30 backdrop-blur-xl border border-white/20 shadow-lg text-center"
@@ -620,15 +621,26 @@ function ProfilePage() {
         <p className="text-xs text-gray-500 mt-1">Tap to withdraw</p>
       </div>
 
+      {/* PROFILE */}
       <div className="rounded-2xl p-5 bg-white/30 backdrop-blur-xl border border-white/20 shadow-lg space-y-4">
 
         <h2 className="text-lg font-semibold">Profile</h2>
 
         {editing ? (
           <>
-            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-            <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-            <input value={form.upi} onChange={e => setForm({ ...form, upi: e.target.value })} />
+            <input
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+            />
+            <input
+              value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })}
+            />
+            <input
+              value={form.upi}
+              onChange={e => setForm({ ...form, upi: e.target.value })}
+            />
+
             <Button onClick={save}>Save</Button>
           </>
         ) : (
@@ -662,64 +674,39 @@ function ProfilePage() {
 
             <input
               type="number"
-              placeholder="Enter amount"
               value={withdrawAmount}
               onChange={(e) => setWithdrawAmount(e.target.value)}
-              className="w-full p-2 border rounded"
             />
 
-            <div className="flex gap-2">
+            <Button
+              onClick={async () => {
+                const amt = Number(withdrawAmount);
 
-              <Button
-                className="w-full"
-                onClick={async () => {
-                  const amt = Number(withdrawAmount);
+                if (amt < 100) return alert("Minimum ₹100");
+                if (amt > balance) return alert("Insufficient");
 
-                  if (amt < 100) {
-                    alert("Minimum ₹100");
-                    return;
-                  }
+                const { data: sessionData } = await supabase.auth.getSession();
+                const user = sessionData?.session?.user;
 
-                  if (amt > balance) {
-                    alert("Insufficient");
-                    return;
-                  }
+                await supabase.from("withdrawals").insert([
+                  { user_id: user.id, amount: amt, status: "pending" }
+                ]);
 
-                  const { data: sessionData } = await supabase.auth.getSession();
-                  const user = sessionData?.session?.user;
+                await supabase
+                  .from("profiles")
+                  .update({ wallet: balance - amt })
+                  .eq("id", user.id);
 
-                  await supabase.from("withdrawals").insert([
-                    {
-                      user_id: user.id,
-                      amount: amt,
-                      status: "pending"
-                    }
-                  ]);
+                setBalance(balance - amt);
 
-                  await supabase
-                    .from("profiles")
-                    .update({ wallet: balance - amt })
-                    .eq("id", user.id);
+                alert("Withdrawal initiated ✅");
 
-                  setBalance(balance - amt);
-
-                  alert("Withdrawal initiated ✅\nWait 24–48 hrs");
-
-                  setShowWithdraw(false);
-                  setWithdrawAmount("");
-                }}
-              >
-                Withdraw
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => setShowWithdraw(false)}
-              >
-                Cancel
-              </Button>
-
-            </div>
+                setShowWithdraw(false);
+                setWithdrawAmount("");
+              }}
+            >
+              Submit
+            </Button>
 
           </div>
         </div>
@@ -728,6 +715,8 @@ function ProfilePage() {
     </div>
   );
 }
+
+
 // ---------------- TransactionPage ----------------
 
 function TransactionsPage() {
@@ -763,4 +752,4 @@ function TransactionsPage() {
 
     </div>
   );
-)
+}
