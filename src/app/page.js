@@ -81,6 +81,7 @@ const handleSave = async () => {
     listener.subscription.unsubscribe();
   };
 }, []);
+  
   // ✅ KEEP ALL HOOKS ABOVE (IMPORTANT)
   useEffect(() => {
     let stored = JSON.parse(localStorage.getItem("gr_tasks") || "[]");
@@ -95,6 +96,23 @@ const handleSave = async () => {
     const merged = [...demoTasks, ...stored.filter(s => !demoTasks.find(d => d.id === s.id))];
     localStorage.setItem("gr_tasks", JSON.stringify(merged));
   }, []);
+  useEffect(() => {
+  const storedTask = localStorage.getItem("selectedTask");
+
+  if (storedTask) {
+    try {
+      const parsed = JSON.parse(storedTask);
+
+      setTimeout(() => {
+        setSelectedTask(parsed);
+        setChatOpen(true);
+      }, 300);
+
+    } catch (err) {
+      console.log("Task restore error:", err);
+    }
+  }
+}, []);
 
   // ✅ SAFE RENDER (after hooks)
   if (loading) {
