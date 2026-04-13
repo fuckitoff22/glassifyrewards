@@ -374,7 +374,6 @@ function Chatbot({ close, selectedTask }) {
   const [chat, setChat] = useState([]);
   const [user, setUser] = useState(null);
 
-  // 🔥 Get logged in user
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data?.user?.email || null);
@@ -397,27 +396,36 @@ function Chatbot({ close, selectedTask }) {
       const file = e.target.files[0];
       if (!file) return;
 
-      const fileName = `${Date.now()}-${file.name}`;
+      // ✅ Better file naming (user-wise folder)
+      const fileName = `${user}/${Date.now()}-${file.name}`;
 
-      // 🔥 Upload to Supabase Storage
+      // ✅ Upload to correct bucket (submissions)
       const { error } = await supabase.storage
-        .from("screenshots")
-        .upload(fileName, file);
+        .from("submissions")
+        .upload(fileName, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
 
       if (error) {
-        console.error(error);
-        alert("Upload failed ❌");
+        console.error("UPLOAD ERROR:", error);
+        alert(error.message || "Upload failed ❌");
         return;
       }
 
-      // 🔥 Get public URL
+      // ✅ Get public URL
       const { data } = supabase.storage
-        .from("screenshots")
+        .from("submissions")
         .getPublicUrl(fileName);
 
-      const imageUrl = data.publicUrl;
+      const imageUrl = data?.publicUrl;
 
-      // 🔥 Insert into DB
+      if (!imageUrl) {
+        alert("Failed to get image URL ❌");
+        return;
+      }
+
+      // ✅ Insert into DB
       const { error: dbError } = await supabase
         .from("submissions")
         .insert([
@@ -430,15 +438,18 @@ function Chatbot({ close, selectedTask }) {
         ]);
 
       if (dbError) {
-        console.error(dbError);
-        alert("DB error ❌");
+        console.error("DB ERROR:", dbError);
+        alert(dbError.message || "DB error ❌");
         return;
       }
 
-      setChat(prev => [...prev, { text: "Screenshot uploaded ✅" }]);
-
+      // ✅ Success UI
+      setChat((prev) => [
+        ...prev,
+        { text: "Screenshot uploaded ✅" },
+      ]);
     } catch (err) {
-      console.error(err);
+      console.error("UNKNOWN ERROR:", err);
       alert("Something went wrong ❌");
     }
   };
@@ -446,10 +457,14 @@ function Chatbot({ close, selectedTask }) {
   const sendMessage = () => {
     if (!message.trim()) return;
 
-    setChat(prev => [
+    setChat((prev) => [
       ...prev,
       { text: message },
-      { text: selectedTask ? `Task: ${selectedTask.title}` : "Ask anything" }
+      {
+        text: selectedTask
+          ? `Task: ${selectedTask.title}`
+          : "Ask anything",
+      },
     ]);
 
     setMessage("");
@@ -459,26 +474,31 @@ function Chatbot({ close, selectedTask }) {
     <div className="fixed bottom-20 right-6 w-80">
       <Card className="bg-white/40 backdrop-blur-xl shadow-lg">
         <CardContent className="p-4">
-
+          
           <div className="flex justify-between mb-2">
             <span>Assistant</span>
-            <X onClick={close}/>
+            <X onClick={close} />
           </div>
 
           {selectedTask && (
-            <p className="text-xs mb-2">Task: {selectedTask.title}</p>
+            <p className="text-xs mb-2">
+              Task: {selectedTask.title}
+            </p>
           )}
 
           <div className="h-40 overflow-y-auto text-sm">
-            {chat.map((c,i)=><div key={i}>{c.text}</div>)}
+            {chat.map((c, i) => (
+              <div key={i}>{c.text}</div>
+            ))}
           </div>
 
+          {/* ✅ Upload */}
           <input type="file" onChange={handleUpload} />
 
           <div className="flex gap-2 mt-2">
-            <input 
-              value={message} 
-              onChange={e=>setMessage(e.target.value)} 
+            <input
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
               className="flex-1 border p-1"
             />
             <Button onClick={sendMessage}>Send</Button>
