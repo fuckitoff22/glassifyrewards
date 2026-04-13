@@ -24,35 +24,36 @@ useEffect(() => {
   let isMounted = true;
 
   // ✅ Listen FIRST (primary control)
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    async (_event, session) => {
-      if (!isMounted) return;
+  const handleSave = async () => {
+  if (!user) {
+    alert("Login required ❌");
+    return;
+  }
 
-      const currentUser = session?.user ?? null;
+  if (!name || !upi) {
+    alert("Fill all fields ❌");
+    return;
+  }
 
-      setUser(currentUser);
-      setLoading(false); // ✅ ALWAYS stop loading here
+  console.log("Saving:", { name, upi, userId: user.id });
 
-      if (!currentUser) {
-        router.replace("/login");
-        return;
-      }
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      name: name,
+      upi: upi
+    })
+    .eq("id", user.id)
+    .select();
 
-      // ✅ Ensure profile exists
-      const { error } = await supabase
-        .from("profiles")
-        .upsert({
-          id: currentUser.id,
-          email: currentUser.email,
-          wallet: 0
-        });
+  console.log("RESPONSE:", data, error);
 
-      if (error) {
-        console.log("UPSERT ERROR:", error.message);
-      }
-    }
-  );
-
+  if (error) {
+    alert("Save failed ❌");
+  } else {
+    alert("Saved ✅");
+  }
+};
   // ✅ Backup session check (runs once)
   supabase.auth.getSession().then(({ data: { session } }) => {
     if (!isMounted) return;
