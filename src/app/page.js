@@ -258,28 +258,31 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
   };
 
   // ✅ PURE STATUS (NO SIDE EFFECTS)
-  const getStatus = (taskId) => {
-    const record = getLatestRecord(taskId);
+ const getStatus = (taskId) => {
+  const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
 
-    if (!record) return "allow";
+  const record = subs
+    .filter(s => s.taskId === taskId)
+    .sort((a, b) => b.id - a.id)[0];
 
-    if (record.status === "approved") return "hide";
+  if (!record) return "allow";
 
-    if (record.status === "pending") return "pending";
+  if (record.status === "approved") return "hide";
 
-    if (record.status === "rejected") {
-      const rejectedAt = record.rejectedAt || 0;
+  if (record.status === "pending") return "pending";
 
-      if (Date.now() - rejectedAt < 30 * 60 * 1000) {
-        return "cooldown";
-      }
+  if (record.status === "rejected") {
+    const rejectedAt = record.rejectedAt || 0;
 
-      return "allow";
+    if (Date.now() - rejectedAt < 30 * 60 * 1000) {
+      return "cooldown";
     }
 
     return "allow";
-  };
+  }
 
+  return "allow";
+};
   const normal = tasks.filter((t) => t.type === "normal");
   const affiliate = tasks.filter(
     (t) => t.type === "affiliate" && t.subtype !== "ecommerce"
