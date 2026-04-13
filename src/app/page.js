@@ -228,20 +228,15 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
   const [tasks, setTasks] = useState([]);
   const [popupTask, setPopupTask] = useState(null);
 
-  useEffect(() => {
-    const load = () => {
-      setTasks(JSON.parse(localStorage.getItem("gr_tasks") || "[]"));
-    };
+ useEffect(() => {
+  const load = async () => {
+    const { data } = await supabase.from("tasks").select("*");
+    setTasks(data || []);
+  };
 
-    load();
-    const interval = setInterval(load, 1000);
-    window.addEventListener("storage", load);
+  load();
+}, []);
 
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("storage", load);
-    };
-  }, []);
 
   const user =
     JSON.parse(localStorage.getItem("gr_profile") || "{}").email || "guest";
@@ -674,59 +669,71 @@ setEditing(false);
   <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
     <div className="bg-white p-5 rounded-xl w-80 space-y-3">
 
-      <h3 className="font-semibold text-lg">Withdraw</h3>
+   <h3 className="font-semibold text-lg">Withdraw</h3>
 
-      <input
-        type="number"
-        placeholder="Enter amount"
-        value={withdrawAmount}
-        onChange={(e) => setWithdrawAmount(e.target.value)}
-        className="w-full p-2 border rounded"
-      />
+<input
+  type="number"
+  placeholder="Enter amount"
+  value={withdrawAmount}
+  onChange={(e) => setWithdrawAmount(e.target.value)}
+  className="w-full p-2 border rounded"
+/>
 
-      <div className="flex gap-2">
-        <Button
-          className="w-full"
-          onClick={() => {
-            const amt = Number(withdrawAmount);
+<div className="flex gap-2">
+  <Button
+    className="w-full"
+    onClick={async () => {
+      const amt = Number(withdrawAmount);
 
-            if (amt < 100) {
-              alert("Minimum withdraw ₹100 ❌");
-              return;
-            }
+      if (amt < 100) {
+        alert("Minimum withdraw ₹100 ❌");
+        return;
+      }
 
-            if (amt > balance) {
-              alert("Insufficient balance ❌");
-              return;
-            }
+      if (amt > balance) {
+        alert("Insufficient balance ❌");
+        return;
+      }
 
-            const withdrawals = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
+      // 🔥 GET USER
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
 
-            withdrawals.push({
-              id: Date.now(),
-              amount: amt,
-              status: "pending"
-            });
+      if (!user) {
+        alert("Login required ❌");
+        return;
+      }
 
-            localStorage.setItem("gr_withdrawals", JSON.stringify(withdrawals));
+      // 🔥 INSERT INTO DB
+      const { error } = await supabase
+        .from("withdrawals")
+        .insert([
+          {
+            user_id: user.id,
+            amount: amt,
+            status: "pending"
+          }
+        ]);
 
-            alert("Withdrawal requested ✅");
-            setShowWithdraw(false);
-            setWithdrawAmount("");
-          }}
-        >
-          Submit
-        </Button>
+      if (error) {
+        console.error(error);
+        alert("Request failed ❌");
+        return;
+      }
 
-        <Button variant="outline" onClick={() => setShowWithdraw(false)}>
-          Cancel
-        </Button>
-      </div>
+      alert("Withdrawal requested ✅");
 
-    </div>
-  </div>
-)}
+      setShowWithdraw(false);
+      setWithdrawAmount("");
+    }}
+  >
+    Submit
+  </Button>
 
+  <Button variant="outline" onClick={() => setShowWithdraw(false)}>
+    Cancel
+  </Button>
+</div>
       <Card className="p-5 space-y-3">
 
         {editing ? (
