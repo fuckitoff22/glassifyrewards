@@ -653,9 +653,23 @@ function ProfilePage() {
       </div>
 
       {showWithdraw && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+        @keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
-          <div className="bg-white p-5 rounded-2xl w-80 space-y-4">
+@keyframes scaleIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.25s ease;
+}
 
             <h3>Withdraw</h3>
 
