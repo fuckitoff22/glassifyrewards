@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/lib/supabase";
 
 export default function AdminPanel() {
   const [page, setPage] = useState("dashboard");
@@ -14,32 +15,44 @@ export default function AdminPanel() {
 
   const [form, setForm] = useState({ title:"", link:"", reward:"", type:"normal", subtype:"", logo:null });
 
+  // ================= LOAD =================
+  const load = async () => {
+    const { data: t } = await supabase.from("tasks").select("*");
+    const { data: s } = await supabase.from("submissions").select("*");
+    const { data: u } = await supabase.from("profiles").select("*");
+    const { data: w } = await supabase.from("withdrawals").select("*");
+
+    setTasks(t || []);
+    setSubmissions(s || []);
+    setUsers(u || []);
+    setWithdrawals(w || []);
+  };
+
   useEffect(() => {
-    const load = () => {
-      setTasks(JSON.parse(localStorage.getItem("gr_tasks") || "[]"));
-      setSubmissions(JSON.parse(localStorage.getItem("gr_submissions") || "[]"));
-      setUsers(JSON.parse(localStorage.getItem("gr_users") || "[]"));
-      setWithdrawals(JSON.parse(localStorage.getItem("gr_withdrawals") || "[]"));
-    };
     load();
-    const i = setInterval(load, 1000);
+    const i = setInterval(load, 2000);
     return () => clearInterval(i);
   }, []);
 
-  const saveTask = () => {
+  // ================= TASK =================
+  const saveTask = async () => {
     if (!form.title) return;
+
     if (editingId) {
-      const updated = tasks.map(t => t.id === editingId ? { ...t, ...form, reward:Number(form.reward) } : t);
-      localStorage.setItem("gr_tasks", JSON.stringify(updated));
-      setTasks(updated);
+      await supabase
+        .from("tasks")
+        .update({ ...form, reward:Number(form.reward) })
+        .eq("id", editingId);
+
       setEditingId(null);
     } else {
-      const newTask = { id: Date.now(), ...form, reward:Number(form.reward) };
-      const updated = [...tasks, newTask];
-      localStorage.setItem("gr_tasks", JSON.stringify(updated));
-      setTasks(updated);
+      await supabase.from("tasks").insert([
+        { id: Date.now(), ...form, reward:Number(form.reward) }
+      ]);
     }
+
     setForm({ title:"", link:"", reward:"", type:"normal", subtype:"", logo:null });
+    load();
   };
 
   const editTask = (t) => {
@@ -48,50 +61,67 @@ export default function AdminPanel() {
     setPage("create");
   };
 
-  const deleteTask = (id) => {
-    const updated = tasks.filter(t=>t.id!==id);
-    localStorage.setItem("gr_tasks", JSON.stringify(updated));
-    setTasks(updated);
+  const deleteTask = async (id) => {
+    await supabase.from("tasks").delete().eq("id", id);
+    load();
   };
 
-  const handleSubmission = (id, status) => {
-    let subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
-    let usersData = JSON.parse(localStorage.getItem("gr_users") || "[]");
+  // ================= SUBMISSION =================
+  const handleSubmission = async (id, status) => {
+    const { data: sub } = await supabase
+      .from("submissions")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    subs = subs.map(s => {
-      if (s.id === id) {
-        if (status === "approved") {
-          const uIndex = usersData.findIndex(u => u.email === s.user);
-          if (uIndex !== -1) usersData[uIndex].wallet += (s.task?.reward || 0);
-        }
-        return { ...s, status };
-      }
-      return s;
-    });
+    if (status === "approved") {
+      const { data: user } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("email", sub.user)
+        .single();
 
-    localStorage.setItem("gr_users", JSON.stringify(usersData));
-    localStorage.setItem("gr_submissions", JSON.stringify(subs));
-    setSubmissions(subs);
-    setUsers(usersData);
+      await supabase
+        .from("profiles")
+        .update({ wallet: (user.wallet || 0) + (sub.task?.reward || 0) })
+        .eq("email", sub.user);
+    }
+
+    await supabase
+      .from("submissions")
+      .update({ status })
+      .eq("id", id);
+
+    load();
   };
 
-  const handleWithdraw = (id, status) => {
-    let w = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
-    let usersData = JSON.parse(localStorage.getItem("gr_users") || "[]");
+  // ================= WITHDRAW =================
+  const handleWithdraw = async (id, status) => {
+    const { data: req } = await supabase
+      .from("withdrawals")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    w = w.map(req => {
-      if (req.id === id) {
-        const uIndex = usersData.findIndex(u => u.email === req.user);
-        if (uIndex !== -1 && status === "rejected") usersData[uIndex].wallet += req.amount;
-        return { ...req, status };
-      }
-      return req;
-    });
+    if (status === "rejected") {
+      const { data: user } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("email", req.user)
+        .single();
 
-    localStorage.setItem("gr_users", JSON.stringify(usersData));
-    localStorage.setItem("gr_withdrawals", JSON.stringify(w));
-    setWithdrawals(w);
-    setUsers(usersData);
+      await supabase
+        .from("profiles")
+        .update({ wallet: (user.wallet || 0) + req.amount })
+        .eq("email", req.user);
+    }
+
+    await supabase
+      .from("withdrawals")
+      .update({ status })
+      .eq("id", id);
+
+    load();
   };
 
   const ecommerceTasks = tasks.filter(t=>t.subtype==="ecommerce");
@@ -139,167 +169,11 @@ export default function AdminPanel() {
               </select>
             )}
 
-            {form.subtype==="ecommerce" && (
-              <div>
-                <input type="file" onChange={e=>{
-                  const reader=new FileReader();
-                  reader.onload=()=>setForm(prev=>({...prev,logo:reader.result}));
-                  reader.readAsDataURL(e.target.files[0]);
-                }}/> 
-                {form.logo && <img src={form.logo} className="w-12 mt-2" />}
-              </div>
-            )}
-
             <Button onClick={saveTask} className="w-full">
               {editingId ? "Update Task" : "Create Task"}
             </Button>
           </CardContent>
         </Card>
-      )}
-
-      {/* ECOM TASKS */}
-      {page==="manage-ecom" && (
-        <div className="grid gap-3">
-          {ecommerceTasks.map(t=> (
-            <Card key={t.id}><CardContent className="p-3 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                {t.logo && <img src={t.logo} className="w-8" />}
-                <span>{t.title}</span>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={()=>editTask(t)}>Edit</Button>
-                <Button onClick={()=>deleteTask(t.id)}>Delete</Button>
-              </div>
-            </CardContent></Card>
-          ))}
-        </div>
-      )}
-
-      {/* OTHER TASKS */}
-      {page==="manage-other" && (
-        <div className="grid gap-3">
-          {otherTasks.map(t=> (
-            <Card key={t.id}><CardContent className="p-3 flex justify-between">
-              <span>{t.title}</span>
-              <div className="flex gap-2">
-                <Button onClick={()=>editTask(t)}>Edit</Button>
-                <Button onClick={()=>deleteTask(t.id)}>Delete</Button>
-              </div>
-            </CardContent></Card>
-          ))}
-        </div>
-      )}
-
-      {/* USERS */}
-      {page==="users" && (
-        <Card>
-          <CardContent className="p-4">
-            {users.map(u=> (
-              <div key={u.email} className="border p-3 mb-3">
-                <p className="font-semibold">{u.email}</p>
-                <p>Wallet: ₹{u.wallet}</p>
-                <p>Status: {u.status || "active"}</p>
-
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  <Button onClick={()=>{
-                    const amount = prompt("Enter new wallet amount");
-                    if(amount!==null){
-                      const updated = users.map(us=>us.email===u.email?{...us,wallet:Number(amount)}:us);
-                      localStorage.setItem("gr_users",JSON.stringify(updated));
-                      setUsers(updated);
-                    }
-                  }}>Edit Wallet</Button>
-
-                  <Button onClick={()=>{
-                    const hours = prompt("Ban for how many hours?");
-                    if(hours){
-                      const updated = users.map(us=>us.email===u.email?{
-                        ...us,
-                        status:"banned",
-                        banUntil: Date.now() + hours*60*60*1000
-                      }:us);
-                      localStorage.setItem("gr_users",JSON.stringify(updated));
-                      setUsers(updated);
-                    }
-                  }}>Ban</Button>
-
-                  {/* Toggle Suspend */}
-                  {u.status === "suspended" ? (
-                    <Button onClick={()=>{
-                      const updated = users.map(us=>us.email===u.email?{...us,status:"active"}:us);
-                      localStorage.setItem("gr_users",JSON.stringify(updated));
-                      setUsers(updated);
-                    }}>Unsuspend</Button>
-                  ) : (
-                    <Button onClick={()=>setSuspendModal({ open:true, user:u, hours:"" })}>
-                      Suspend
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {/* Suspend Modal */}
-            {suspendModal.open && (
-              <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
-                <div className="bg-white p-6 rounded shadow w-80">
-                  <h3 className="mb-2 font-semibold">Suspend User</h3>
-                  <p className="text-sm mb-2">User: {suspendModal.user?.email}</p>
-
-                  <input
-                    className="w-full p-2 border mb-3"
-                    placeholder="Enter hours"
-                    value={suspendModal.hours}
-                    onChange={e=>setSuspendModal(prev=>({...prev,hours:e.target.value}))}
-                  />
-
-                  <div className="flex gap-2">
-                    <Button className="flex-1" onClick={()=>{
-                      const hours = Number(suspendModal.hours);
-                      if(!hours) return;
-
-                      const updated = users.map(us=>us.email===suspendModal.user.email?{
-                        ...us,
-                        status:"suspended",
-                        suspendUntil: Date.now() + hours*60*60*1000
-                      }:us);
-
-                      localStorage.setItem("gr_users",JSON.stringify(updated));
-                      setUsers(updated);
-                      setSuspendModal({ open:false, user:null, hours:"" });
-                    }}>Confirm</Button>
-
-                    <Button className="flex-1" onClick={()=>setSuspendModal({ open:false, user:null, hours:"" })}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </div>
-      )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* SUBMISSIONS */}
-      {page==="submissions" && (
-        <div className="grid gap-3">
-          {submissions.filter(s=>s.status==="pending").map(s=> (
-            <Card key={s.id}><CardContent className="p-3">
-              <p className="font-semibold">{s.task?.title}</p>
-              {s.img && (
-                <a href={s.img} target="_blank" className="text-blue-600 underline">
-                  View Screenshot
-                </a>
-              )}
-              <p className="text-blue-600 cursor-pointer" onClick={()=>setPage("users")}>{s.user}</p>
-              <p>₹{s.task?.reward}</p>
-              <div className="flex gap-2 mt-2">
-                <Button onClick={()=>handleSubmission(s.id,"approved")} className="flex-1">Approve</Button>
-                <Button onClick={()=>handleSubmission(s.id,"rejected")} className="flex-1">Reject</Button>
-              </div>
-            </CardContent></Card>
-          ))}
-        </div>
       )}
 
       {/* PAYOFF */}
@@ -308,13 +182,13 @@ export default function AdminPanel() {
           <CardContent className="p-4">
             {withdrawals.map(w=> (
               <div key={w.id} className="border p-3 mb-2">
-                <p className="text-blue-600 cursor-pointer" onClick={()=>setPage("users")}>{w.user}</p>
-                <p>Amount: ₹{w.amount}</p>
-                <p>Status: {w.status}</p>
+                <p>{w.user}</p>
+                <p>₹{w.amount}</p>
+                <p>{w.status}</p>
                 {w.status==="pending" && (
                   <div className="flex gap-2 mt-2">
-                    <Button className="flex-1" onClick={()=>handleWithdraw(w.id,"approved")}>Approve</Button>
-                    <Button className="flex-1" onClick={()=>handleWithdraw(w.id,"rejected")}>Reject</Button>
+                    <Button onClick={()=>handleWithdraw(w.id,"approved")}>Approve</Button>
+                    <Button onClick={()=>handleWithdraw(w.id,"rejected")}>Reject</Button>
                   </div>
                 )}
               </div>
