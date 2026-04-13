@@ -790,7 +790,6 @@ function TransactionsPage() {
         </Card>
       ))}
 
-    </div>
-  );
+   );
 
 
