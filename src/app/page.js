@@ -728,44 +728,6 @@ function ProfilePage() {
     </div>
   );
 }
-
-
-// ---------------- TransactionPage ----------------
-
-function TransactionsPage() {
-  const [withdrawals, setWithdrawals] = useState([]);
-
-  useEffect(() => {
-    const load = async () => {
-      const { data } = await supabase
-        .from("withdrawals")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      setWithdrawals(data || []);
-    };
-
-    load();
-  }, []);
-
-  return (
-    <div className="space-y-4">
-
-      <h2>Transactions</h2>
-
-      {withdrawals.map((w) => (
-        <Card key={w.id}>
-          <CardContent>
-            <p>₹{w.amount}</p>
-            <p>{w.status}</p>
-            <p>{new Date(w.created_at).toLocaleString()}</p>
-          </CardContent>
-        </Card>
-      ))}
-
-    </div>
-  );
-}
 // ---------------- TransactionPage ----------------
 
 function TransactionsPage() {
