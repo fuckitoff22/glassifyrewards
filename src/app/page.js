@@ -433,48 +433,41 @@ function Chatbot({ close, selectedTask }) {
 }
 
       // ✅ Better file naming (user-wise folder)
-    const fileName = `${Date.now()}-${file.name}`;
-      // ✅ Upload to correct bucket (submissions)
-      const { error } = supabase.storage.from("screenshots") 
-        .upload(fileName, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
+    const fileName = `${user}/${Date.now()}-${file.name}`;
 
-      if (error) {
-        console.error("UPLOAD ERROR:", error);
-        alert(error.message || "Upload failed ❌");
-        return;
-      }
+// upload
+const { error } = await supabase.storage
+  .from("screenshots")
+  .upload(fileName, file);
 
-      // ✅ Get public URL
-      const { data } = supabase.storage.from("screenshots") 
-        .getPublicUrl(fileName);
+if (error) {
+  alert("Upload failed ❌");
+  return;
+}
 
-      const imageUrl = data?.publicUrl;
+// get URL
+const { data } = supabase.storage
+  .from("screenshots")
+  .getPublicUrl(fileName);
 
-      if (!imageUrl) {
-        alert("Failed to get image URL ❌");
-        return;
-      }
+const imageUrl = data.publicUrl;
 
-      // ✅ Insert into DB
-      const { error: dbError } = await supabase.storage.from("screenshots") 
-        .insert([
-          {
-            task_id: selectedTask.id,
-            user_email: user,
-            image_url: imageUrl,
-            status: "pending",
-          },
-        ]);
+// save in DB (FIXED)
+const { error: dbError } = await supabase
+  .from("submissions")
+  .insert([
+    {
+      task_id: selectedTask.id,
+      user_email: user,
+      image_url: imageUrl,
+      status: "pending",
+    },
+  ]);
 
-      if (dbError) {
-        console.error("DB ERROR:", dbError);
-        alert(dbError.message || "DB error ❌");
-        return;
-      }
-
+if (dbError) {
+  alert("DB error ❌");
+  return;
+}
       // ✅ Success UI
       setChat((prev) => [
         ...prev,
@@ -542,7 +535,6 @@ function Chatbot({ close, selectedTask }) {
   );
 }
 // ---------------- Profile ----------------
-// ---------------- Profile ----------------
 function ProfilePage() {
   const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(true);
@@ -552,8 +544,7 @@ function ProfilePage() {
   const [form, setForm] = useState({
     name: "",
     email: "",
-    method: "upi",
-    details: ""
+    upi: ""
   });
 
   const [balance, setBalance] = useState(0);
@@ -568,24 +559,31 @@ function ProfilePage() {
       if (currentUser) {
         setUser(currentUser);
 
-        const saved = JSON.parse(
-          localStorage.getItem("gr_profile_" + currentUser.id) || "null"
-        );
+        const { data } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", currentUser.id)
+          .single();
 
-        if (saved) {
-          setProfile(saved);
-          setForm(saved);
+        if (data) {
+          setProfile(data);
+          setForm({
+            name: data.name || "",
+            email: data.email || "",
+            upi: data.upi || ""
+          });
           setEditing(false);
+          setBalance(data.wallet || 0);
         } else {
           setForm({
             name: currentUser.user_metadata?.full_name || "",
             email: currentUser.email || "",
-            method: "upi",
-            details: ""
+            upi: ""
           });
         }
       }
 
+      // fallback local wallet calc (kept same logic)
       const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
       const withdrawals = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
 
@@ -607,7 +605,7 @@ function ProfilePage() {
 
   const save = async () => {
     try {
-      if (!form.name || !form.email || !form.details) {
+      if (!form.name || !form.email || !form.upi) {
         alert("Fill all fields");
         return;
       }
@@ -623,29 +621,36 @@ function ProfilePage() {
       const { error } = await supabase.from("profiles").upsert([
         {
           id: currentUser.id,
-          name: form.name || "",
-          email: form.email || "",
-          method: form.method || "upi",
-          details: form.details || ""
+          name: form.name,
+          email: form.email,
+          upi: form.upi,
+          wallet: balance
         }
       ]);
 
       if (error) {
-        console.error("DB ERROR:", error);
-        alert(error.message || "Save failed ❌");
+        console.error(error);
+        alert("Save failed ❌");
         return;
       }
 
       alert("Saved ✅");
+      setEditing(false);
 
     } catch (err) {
       console.error(err);
-      alert("Unexpected error ❌");
+      alert("Error ❌");
     }
   };
 
   return (
     <div className="max-w-md mx-auto space-y-4">
+
+      {/* WALLET */}
+      <div className="p-3 rounded-xl bg-green-100 text-green-800 font-semibold text-center">
+        Wallet Balance: ₹{balance}
+      </div>
+
       <Card className="p-5 space-y-3">
 
         {editing ? (
@@ -664,18 +669,10 @@ function ProfilePage() {
               className="w-full p-2 border rounded"
             />
 
-            <select
-              value={form.method}
-              onChange={e => setForm({ ...form, method: e.target.value })}
-              className="w-full p-2 border rounded"
-            >
-              <option value="upi">UPI</option>
-            </select>
-
             <input
-              placeholder="Enter UPI ID"
-              value={form.details}
-              onChange={e => setForm({ ...form, details: e.target.value })}
+              placeholder="UPI ID"
+              value={form.upi}
+              onChange={e => setForm({ ...form, upi: e.target.value })}
               className="w-full p-2 border rounded"
             />
 
@@ -688,7 +685,7 @@ function ProfilePage() {
             <h3 className="font-semibold text-lg">{profile?.name}</h3>
             <p>{profile?.email}</p>
             <p className="text-sm text-gray-600">
-              {profile?.method?.toUpperCase()} : {profile?.details}
+              UPI: {profile?.upi}
             </p>
 
             <div className="flex gap-2">
@@ -711,6 +708,7 @@ function ProfilePage() {
     </div>
   );
 }
+
 
 // ---------------- TransactionPage ----------------
 function TransactionsPage() {
