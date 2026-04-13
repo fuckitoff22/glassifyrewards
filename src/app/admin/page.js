@@ -6,14 +6,22 @@ import { supabase } from "@/lib/supabase";
 
 export default function AdminPanel() {
   const [page, setPage] = useState("dashboard");
+
   const [tasks, setTasks] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [users, setUsers] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-  const [suspendModal, setSuspendModal] = useState({ open:false, user:null, hours:"" });
 
-  const [form, setForm] = useState({ title:"", link:"", reward:"", type:"normal", subtype:"", logo:null });
+  const [editingId, setEditingId] = useState(null);
+
+  const [form, setForm] = useState({
+    title:"",
+    link:"",
+    reward:"",
+    type:"normal",
+    subtype:"",
+    logo:null
+  });
 
   // ================= LOAD =================
   const load = async () => {
@@ -30,8 +38,6 @@ export default function AdminPanel() {
 
   useEffect(() => {
     load();
-    const i = setInterval(load, 2000);
-    return () => clearInterval(i);
   }, []);
 
   // ================= TASK =================
@@ -41,13 +47,19 @@ export default function AdminPanel() {
     if (editingId) {
       await supabase
         .from("tasks")
-        .update({ ...form, reward:Number(form.reward) })
+        .update({
+          ...form,
+          reward:Number(form.reward)
+        })
         .eq("id", editingId);
-
       setEditingId(null);
     } else {
       await supabase.from("tasks").insert([
-        { id: Date.now(), ...form, reward:Number(form.reward) }
+        {
+          id: Date.now(),
+          ...form,
+          reward:Number(form.reward)
+        }
       ]);
     }
 
@@ -66,7 +78,7 @@ export default function AdminPanel() {
     load();
   };
 
-  // ================= SUBMISSION =================
+  // ================= SUBMISSIONS =================
   const handleSubmission = async (id, status) => {
     const { data: sub } = await supabase
       .from("submissions")
@@ -83,7 +95,9 @@ export default function AdminPanel() {
 
       await supabase
         .from("profiles")
-        .update({ wallet: (user.wallet || 0) + (sub.task?.reward || 0) })
+        .update({
+          wallet: (user.wallet || 0) + (sub.reward || 0)
+        })
         .eq("email", sub.user);
     }
 
@@ -112,7 +126,9 @@ export default function AdminPanel() {
 
       await supabase
         .from("profiles")
-        .update({ wallet: (user.wallet || 0) + req.amount })
+        .update({
+          wallet: (user.wallet || 0) + req.amount
+        })
         .eq("email", req.user);
     }
 
@@ -133,11 +149,11 @@ export default function AdminPanel() {
       <div className="flex gap-2 mb-6 flex-wrap">
         <Button onClick={()=>setPage("dashboard")}>Dashboard</Button>
         <Button onClick={()=>setPage("create")}>Create Task</Button>
-        <Button onClick={()=>setPage("manage-ecom")}>Ecommerce Tasks</Button>
+        <Button onClick={()=>setPage("manage-ecom")}>Ecommerce</Button>
         <Button onClick={()=>setPage("manage-other")}>Other Tasks</Button>
         <Button onClick={()=>setPage("users")}>Users</Button>
         <Button onClick={()=>setPage("submissions")}>Submissions</Button>
-        <Button onClick={()=>setPage("payoff")}>Payoff</Button>
+        <Button onClick={()=>setPage("payoff")}>Withdrawals</Button>
       </div>
 
       {/* DASHBOARD */}
@@ -153,48 +169,88 @@ export default function AdminPanel() {
       {page==="create" && (
         <Card className="max-w-2xl mx-auto">
           <CardContent className="p-6 space-y-3">
-            <input className="w-full p-3 border" placeholder="Task Title" value={form.title} onChange={e=>setForm({...form,title:e.target.value})} />
-            <input className="w-full p-3 border" placeholder="Task Link" value={form.link} onChange={e=>setForm({...form,link:e.target.value})} />
-            <input className="w-full p-3 border" placeholder="Reward" value={form.reward} onChange={e=>setForm({...form,reward:e.target.value})} />
 
-            <select className="w-full p-3 border" value={form.type} onChange={e=>setForm({...form,type:e.target.value,subtype:e.target.value==="affiliate"?"ecommerce":""})}>
+            <input className="w-full p-3 border" placeholder="Title"
+              value={form.title}
+              onChange={e=>setForm({...form,title:e.target.value})}
+            />
+
+            <input className="w-full p-3 border" placeholder="Link"
+              value={form.link}
+              onChange={e=>setForm({...form,link:e.target.value})}
+            />
+
+            <input className="w-full p-3 border" placeholder="Reward"
+              value={form.reward}
+              onChange={e=>setForm({...form,reward:e.target.value})}
+            />
+
+            <select className="w-full p-3 border"
+              value={form.type}
+              onChange={e=>setForm({...form,type:e.target.value})}
+            >
               <option value="normal">Normal</option>
               <option value="affiliate">Affiliate</option>
             </select>
 
             {form.type==="affiliate" && (
-              <select className="w-full p-3 border" value={form.subtype} onChange={e=>setForm({...form,subtype:e.target.value})}>
+              <select className="w-full p-3 border"
+                value={form.subtype}
+                onChange={e=>setForm({...form,subtype:e.target.value})}
+              >
                 <option value="ecommerce">Ecommerce</option>
                 <option value="general">General</option>
               </select>
             )}
 
+            {form.subtype==="ecommerce" && (
+              <input type="file"
+                onChange={e=>{
+                  const reader = new FileReader();
+                  reader.onload = ()=>setForm(prev=>({...prev,logo:reader.result}));
+                  reader.readAsDataURL(e.target.files[0]);
+                }}
+              />
+            )}
+
             <Button onClick={saveTask} className="w-full">
               {editingId ? "Update Task" : "Create Task"}
             </Button>
+
           </CardContent>
         </Card>
       )}
 
-      {/* PAYOFF */}
+      {/* SUBMISSIONS */}
+      {page==="submissions" && (
+        <div className="grid gap-3">
+          {submissions.map(s=>(
+            <Card key={s.id}><CardContent className="p-3">
+              <p>{s.user}</p>
+              {s.img && <a href={s.img} target="_blank">View SS</a>}
+              <p>{s.status}</p>
+
+              <Button onClick={()=>handleSubmission(s.id,"approved")}>Approve</Button>
+              <Button onClick={()=>handleSubmission(s.id,"rejected")}>Reject</Button>
+            </CardContent></Card>
+          ))}
+        </div>
+      )}
+
+      {/* WITHDRAW */}
       {page==="payoff" && (
-        <Card>
-          <CardContent className="p-4">
-            {withdrawals.map(w=> (
-              <div key={w.id} className="border p-3 mb-2">
-                <p>{w.user}</p>
-                <p>₹{w.amount}</p>
-                <p>{w.status}</p>
-                {w.status==="pending" && (
-                  <div className="flex gap-2 mt-2">
-                    <Button onClick={()=>handleWithdraw(w.id,"approved")}>Approve</Button>
-                    <Button onClick={()=>handleWithdraw(w.id,"rejected")}>Reject</Button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <div>
+          {withdrawals.map(w=>(
+            <Card key={w.id}><CardContent className="p-3">
+              <p>{w.user}</p>
+              <p>₹{w.amount}</p>
+              <p>{w.status}</p>
+
+              <Button onClick={()=>handleWithdraw(w.id,"approved")}>Approve</Button>
+              <Button onClick={()=>handleWithdraw(w.id,"rejected")}>Reject</Button>
+            </CardContent></Card>
+          ))}
+        </div>
       )}
 
     </div>
