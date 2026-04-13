@@ -436,7 +436,7 @@ function Chatbot({ close, selectedTask }) {
     const fileName = `${Date.now()}-${file.name}`;
       // ✅ Upload to correct bucket (submissions)
       const { error } = await supabase.storage
-        .from("submissions")
+        .from("screenshots")
         .upload(fileName, file, {
           cacheControl: "3600",
           upsert: false,
