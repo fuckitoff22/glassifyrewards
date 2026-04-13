@@ -394,7 +394,10 @@ function Chatbot({ close, selectedTask }) {
       }
 
       const file = e.target.files[0];
-      if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+  alert("File too large (max 5MB) ❌");
+  return;
+}
 
       // ✅ Better file naming (user-wise folder)
       const fileName = `${user}/${Date.now()}-${file.name}`;
