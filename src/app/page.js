@@ -675,12 +675,42 @@ function ProfilePage() {
                 const { data: sessionData } = await supabase.auth.getSession();
                 const user = sessionData?.session?.user;
 
-                await supabase.from("withdrawals").insert([
-                  { user_id: user.id, amount: amt, status: "pending" }
-                ]);
+              const amt = Number(withdrawAmount);
 
-                alert("Requested ✅");
-                setShowWithdraw(false);
+if (amt < 100) {
+  alert("Minimum ₹100");
+  return;
+}
+
+if (amt > balance) {
+  alert("Insufficient");
+  return;
+}
+
+const { data: sessionData } = await supabase.auth.getSession();
+const user = sessionData?.session?.user;
+
+// ✅ 1. CREATE WITHDRAW REQUEST
+await supabase.from("withdrawals").insert([
+  {
+    user_id: user.id,
+    amount: amt,
+    status: "pending"
+  }
+]);
+
+// ✅ 2. DEDUCT WALLET IMMEDIATELY
+await supabase
+  .from("profiles")
+  .update({ wallet: balance - amt })
+  .eq("id", user.id);
+
+// ✅ 3. UPDATE UI
+setBalance(balance - amt);
+
+alert("Withdrawal initiated ✅");
+
+setShowWithdraw(false);
               }}
             >
               Submit
