@@ -626,11 +626,10 @@ function ProfilePage() {
             </select>
 
             <input
-              placeholder={
-                form.method === "upi"
-                  ? "Enter UPI ID"
-                  
-              }
+             placeholder={
+  selectedMethod === "upi"
+    ? "Enter UPI ID"
+}
               value={form.details}
               onChange={e => setForm({ ...form, details: e.target.value })}
               className="w-full p-2 border rounded"
