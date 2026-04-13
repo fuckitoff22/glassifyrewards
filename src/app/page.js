@@ -697,50 +697,66 @@ if (error) {
           </>
         )}
       </Card>
+{editing ? (
+  <>
+    <input
+      placeholder="Name"
+      value={form.name}
+      onChange={e => setForm({ ...form, name: e.target.value })}
+      className="w-full p-2 border rounded"
+    />
 
-      {!editing && (
-        <Card className="p-5 space-y-3">
-          <h3 className="font-semibold">Wallet</h3>
+    <input
+      placeholder="Email"
+      value={form.email}
+      onChange={e => setForm({ ...form, email: e.target.value })}
+      className="w-full p-2 border rounded"
+    />
 
-          <p className="text-lg font-bold">₹{balance}</p>
+    <select
+      value={form.method}
+      onChange={e => setForm({ ...form, method: e.target.value })}
+      className="w-full p-2 border rounded"
+    >
+      <option value="upi">UPI</option>
+    </select>
 
-          <input
-            id="withdrawAmount"
-            placeholder="Enter amount"
-            className="w-full p-2 border rounded"
-          />
+    <input
+      placeholder="Enter UPI ID"
+      value={form.details}
+      onChange={e => setForm({ ...form, details: e.target.value })}
+      className="w-full p-2 border rounded"
+    />
 
-          <Button
-            onClick={async () => {
-              const amount = Number(document.getElementById("withdrawAmount").value);
-
-              if (!amount || amount <= 0) {
-                alert("Enter valid amount");
-                return;
-              }
-
-              await supabase.from("withdrawals").insert([
-                {
-                  user_email: profile.email,
-                  amount: amount,
-                  status: "pending"
-                }
-              ]);
-
-              alert("Withdrawal Requested ✅");
-            }}
-          >
-            Withdraw
-          </Button>
-
-          <p className="text-xs text-gray-500">
-            Minimum withdraw: ₹100
-          </p>
-        </Card>
-      )}
+    <div className="flex gap-2">
+      <Button className="w-full" onClick={save}>
+        Save
+      </Button>
     </div>
-  );
-}
+  </>
+) : (
+  <>
+    <h3 className="font-semibold text-lg">{profile.name}</h3>
+    <p>{profile.email}</p>
+    <p className="text-sm text-gray-600">
+      {profile.method.toUpperCase()} : {profile.details}
+    </p>
+
+    <div className="flex gap-2">
+      <Button onClick={() => setEditing(true)}>Edit</Button>
+
+      <Button
+        className="bg-red-500 text-white"
+        onClick={async () => {
+          await supabase.auth.signOut();
+          window.location.href = "/login";
+        }}
+      >
+        Logout
+      </Button>
+    </div>
+  </>
+)}
 // ---------------- TransactionPage ----------------
 function TransactionsPage() {
   const [withdrawals, setWithdrawals] = useState([]);
