@@ -283,6 +283,7 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
 
   return "allow";
 };
+  
   const normal = tasks.filter((t) => t.type === "normal");
   const affiliate = tasks.filter(
     (t) => t.type === "affiliate" && t.subtype !== "ecommerce"
