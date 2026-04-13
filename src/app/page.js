@@ -653,9 +653,9 @@ const currentUser = sessionData?.session?.user;
     alert("Saved successfully ✅");
 
   } catch (err) {
-    console.error(err);
-    alert("Something went wrong ❌");
-  }
+  console.error("SAVE ERROR:", err);
+  alert(err.message || "Something went wrong ❌");
+}
 };
   return (
     <div className="max-w-md mx-auto space-y-4">
