@@ -792,5 +792,5 @@ function TransactionsPage() {
 
     </div>
   );
-)
+
 
