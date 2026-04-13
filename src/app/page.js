@@ -761,4 +761,4 @@ function TransactionsPage() {
     ))}
 </div>
 );
-}
+)
