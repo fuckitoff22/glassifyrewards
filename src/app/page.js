@@ -23,38 +23,21 @@ export default function GlassifyApp() {
 useEffect(() => {
   let isMounted = true;
 
-  // ✅ Listen FIRST (primary control)
-  const handleSave = async () => {
-  if (!user) {
-    alert("Login required ❌");
-    return;
-  }
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      if (!isMounted) return;
 
-  if (!name || !upi) {
-    alert("Fill all fields ❌");
-    return;
-  }
+      const currentUser = session?.user ?? null;
 
-  console.log("Saving:", { name, upi, userId: user.id });
+      setUser(currentUser);
+      setLoading(false);
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .update({
-      name: name,
-      upi: upi
-    })
-    .eq("id", user.id)
-    .select();
+      if (!currentUser) {
+        router.replace("/login");
+      }
+    }
+  );
 
-  console.log("RESPONSE:", data, error);
-
-  if (error) {
-    alert("Save failed ❌");
-  } else {
-    alert("Saved ✅");
-  }
-};
-  // ✅ Backup session check (runs once)
   supabase.auth.getSession().then(({ data: { session } }) => {
     if (!isMounted) return;
 
@@ -67,7 +50,32 @@ useEffect(() => {
       router.replace("/login");
     }
   });
+const handleSave = async () => {
+  if (!user) {
+    alert("Login required ❌");
+    return;
+  }
 
+  if (!name || !upi) {
+    alert("Fill all fields ❌");
+    return;
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      name,
+      upi
+    })
+    .eq("id", user.id);
+
+  if (error) {
+    console.log(error);
+    alert("Save failed ❌");
+  } else {
+    alert("Saved ✅");
+  }
+};
   return () => {
     isMounted = false;
     listener.subscription.unsubscribe();
