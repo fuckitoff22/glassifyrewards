@@ -29,11 +29,12 @@ export default function AdminPage() {
   // 📦 LOAD DATA
   const loadData = async () => {
     // submissions from DB
-    const { data } = await supabase
-      .from("submissions")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const { data, error } = await supabase
+  .from("submissions")
+  .select("*")
+  .order("created_at", { ascending: false });
 
+console.log("ADMIN DATA:", data);
     if (data) setSubmissions(data);
 
     // withdrawals from localStorage
