@@ -565,9 +565,8 @@ function ProfilePage() {
     setMounted(true);
 
     const loadUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      const currentUser = data?.user;
-
+      const { data: sessionData } = await supabase.auth.getSession();
+const currentUser = sessionData?.session?.user;
       if (currentUser) {
         setUser(currentUser); // ✅ STORE USER
 
