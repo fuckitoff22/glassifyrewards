@@ -541,7 +541,7 @@ if (dbError) {
 // ---------------- Profile ----------------
 function ProfilePage() {
   const [showWithdraw, setShowWithdraw] = useState(false);
-const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
   const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -579,29 +579,11 @@ const [withdrawAmount, setWithdrawAmount] = useState("");
             upi: data.upi || ""
           });
           setEditing(false);
+
+          // ✅ Wallet comes from DB (ADMIN SYNC)
           setBalance(data.wallet || 0);
-        } else {
-          setForm({
-            name: currentUser.user_metadata?.full_name || "",
-            email: currentUser.email || "",
-            upi: ""
-          });
         }
       }
-
-      // fallback local wallet calc (kept same logic)
-      const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
-      const withdrawals = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
-
-      const approved = subs.filter(s => s.status === "approved");
-
-      const totalEarn = approved.reduce((a, s) => a + (s.task?.reward || 0), 0);
-
-      const totalWithdrawn = withdrawals
-        .filter(w => w.status === "approved")
-        .reduce((a, w) => a + w.amount, 0);
-
-      setBalance(totalEarn - totalWithdrawn);
     };
 
     loadUser();
@@ -610,232 +592,139 @@ const [withdrawAmount, setWithdrawAmount] = useState("");
   if (!mounted) return null;
 
   const save = async () => {
-    try {
-      if (!form.name || !form.email || !form.upi) {
-        alert("Fill all fields");
-        return;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUser = sessionData?.session?.user;
+
+    await supabase.from("profiles").upsert([
+      {
+        id: currentUser.id,
+        name: form.name,
+        email: form.email,
+        upi: form.upi,
+        wallet: balance
       }
+    ]);
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUser = sessionData?.session?.user;
-
-      if (!currentUser) {
-        alert("User not found ❌");
-        return;
-      }
-
-      const { error } = await supabase.from("profiles").upsert([
-        {
-          id: currentUser.id,
-          name: form.name,
-          email: form.email,
-          upi: form.upi,
-          wallet: balance
-        }
-      ]);
-
-      if (error) {
-        console.error(error);
-        alert("Save failed ❌");
-        return;
-      }
-
-      alert("Saved ✅");
-
-// ✅ UPDATE UI instantly
-setProfile({
-  name: form.name,
-  email: form.email,
-  upi: form.upi
-});
-
-setEditing(false);
-
-    } catch (err) {
-      console.error(err);
-      alert("Error ❌");
-    }
+    setProfile(form);
+    setEditing(false);
+    alert("Saved ✅");
   };
 
   return (
     <div className="max-w-md mx-auto space-y-4">
-<div 
-  onClick={() => setShowWithdraw(true)}
-  className="p-3 rounded-xl bg-green-100 text-green-800 font-semibold text-center cursor-pointer"
->
-  Wallet Balance: ₹{balance} (Click to withdraw)
-</div>
-    {showWithdraw && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-    <div className="bg-white p-5 rounded-xl w-80 space-y-3">
 
-   <h3 className="font-semibold text-lg">Withdraw</h3>
+      {/* WALLET */}
+      <div
+        onClick={() => setShowWithdraw(true)}
+        className="p-3 rounded-xl bg-green-100 text-green-800 font-semibold text-center cursor-pointer"
+      >
+        Wallet Balance: ₹{balance}
+      </div>
 
-<input
-  type="number"
-  placeholder="Enter amount"
-  value={withdrawAmount}
-  onChange={(e) => setWithdrawAmount(e.target.value)}
-  className="w-full p-2 border rounded"
-/>
-
-<div className="flex gap-2">
-  <Button
-    className="w-full"
-    onClick={async () => {
-      const amt = Number(withdrawAmount);
-
-      if (amt < 100) {
-        alert("Minimum withdraw ₹100 ❌");
-        return;
-      }
-
-      if (amt > balance) {
-        alert("Insufficient balance ❌");
-        return;
-      }
-
-      // 🔥 GET USER
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
-
-      if (!user) {
-        alert("Login required ❌");
-        return;
-      }
-
-      // 🔥 INSERT INTO DB
-      const { error } = await supabase
-        .from("withdrawals")
-        .insert([
-          {
-            user_id: user.id,
-            amount: amt,
-            status: "pending"
-          }
-        ]);
-
-      if (error) {
-        console.error(error);
-        alert("Request failed ❌");
-        return;
-      }
-
-      alert("Withdrawal requested ✅");
-
-      setShowWithdraw(false);
-      setWithdrawAmount("");
-    }}
-  >
-    Submit
-  </Button>
-
-  <Button variant="outline" onClick={() => setShowWithdraw(false)}>
-    Cancel
-  </Button>
-</div>
+      {/* PROFILE */}
       <Card className="p-5 space-y-3">
 
         {editing ? (
           <>
-            <input
-              placeholder="Name"
-              value={form.name}
-              onChange={e => setForm({ ...form, name: e.target.value })}
-              className="w-full p-2 border rounded"
-            />
-
-            <input
-              placeholder="Email"
-              value={form.email}
-              onChange={e => setForm({ ...form, email: e.target.value })}
-              className="w-full p-2 border rounded"
-            />
-
-            <input
-              placeholder="UPI ID"
-              value={form.upi}
-              onChange={e => setForm({ ...form, upi: e.target.value })}
-              className="w-full p-2 border rounded"
-            />
-
-            <Button className="w-full" onClick={save}>
-              Save
-            </Button>
+            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+            <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+            <input value={form.upi} onChange={e => setForm({ ...form, upi: e.target.value })} />
+            <Button onClick={save}>Save</Button>
           </>
         ) : (
           <>
-            <h3 className="font-semibold text-lg">{profile?.name}</h3>
+            <h3>{profile?.name}</h3>
             <p>{profile?.email}</p>
-            <p className="text-sm text-gray-600">
-              UPI: {profile?.upi}
-            </p>
+            <p>UPI: {profile?.upi}</p>
 
-            <div className="flex gap-2">
-              <Button onClick={() => setEditing(true)}>Edit</Button>
-
-              <Button
-                className="bg-red-500 text-white"
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  window.location.href = "/login";
-                }}
-              >
-                Logout
-              </Button>
-            </div>
+            <Button onClick={() => setEditing(true)}>Edit</Button>
           </>
         )}
 
       </Card>
+
+      {/* WITHDRAW POPUP */}
+      {showWithdraw && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+          <div className="bg-white p-5 rounded-xl w-80 space-y-3">
+
+            <h3>Withdraw</h3>
+
+            <input
+              type="number"
+              value={withdrawAmount}
+              onChange={(e) => setWithdrawAmount(e.target.value)}
+            />
+
+            <Button
+              onClick={async () => {
+                const { data: sessionData } = await supabase.auth.getSession();
+                const user = sessionData?.session?.user;
+
+                await supabase.from("withdrawals").insert([
+                  {
+                    user_id: user.id,
+                    amount: Number(withdrawAmount),
+                    status: "pending"
+                  }
+                ]);
+
+                alert("Requested ✅");
+                setShowWithdraw(false);
+              }}
+            >
+              Submit
+            </Button>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
-)
+}
+
+
 // ---------------- TransactionPage ----------------
+
 function TransactionsPage() {
   const [withdrawals, setWithdrawals] = useState([]);
 
   useEffect(() => {
-    const load = () => {
-      setWithdrawals(JSON.parse(localStorage.getItem("gr_withdrawals") || "[]"));
+    const load = async () => {
+      const { data } = await supabase
+        .from("withdrawals")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      setWithdrawals(data || []);
     };
 
     load();
-    const interval = setInterval(load, 1000);
-    return () => clearInterval(interval);
   }, []);
 
   return (
     <div className="space-y-4">
 
-      <h2 className="text-xl font-semibold">Transactions</h2>
+      <h2>Transactions</h2>
 
-      {withdrawals.length === 0 && (
-        <p className="text-gray-500">No transactions yet</p>
-      )}
+      {withdrawals.map((w) => (
+        <Card key={w.id}>
+          <CardContent>
 
-      {withdrawals.map((w, i) => (
-        <Card key={i} className="bg-white/40 backdrop-blur-xl border border-white/30 rounded-2xl">
-          <CardContent className="p-4 space-y-1">
+            <p>₹{w.amount}</p>
 
-            <p><b>Amount:</b> ₹{w.amount}</p>
-
-            <p>
-              <b>Status:</b>{" "}
-              <span className={
-                w.status === "approved"
-                  ? "text-green-600"
-                  : w.status === "rejected"
-                  ? "text-red-500"
-                  : "text-yellow-500"
-              }>
-                {w.status}
-              </span>
+            <p className={
+              w.status === "approved"
+                ? "text-green-600"
+                : w.status === "rejected"
+                ? "text-red-500"
+                : "text-yellow-500"
+            }>
+              {w.status}
             </p>
 
-            <p className="text-xs text-gray-500">
-              {new Date(w.id).toLocaleString()}
-            </p>
+            <p>{new Date(w.created_at).toLocaleString()}</p>
 
           </CardContent>
         </Card>
