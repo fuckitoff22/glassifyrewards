@@ -753,6 +753,7 @@ return (
 
   </div>
 );
+)
 // ---------------- TransactionPage ----------------
 
 function TransactionsPage() {
