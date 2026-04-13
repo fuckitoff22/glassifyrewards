@@ -790,9 +790,7 @@ setEditing(false);
       </Card>
     </div>
   );
-}
-
-
+)
 // ---------------- TransactionPage ----------------
 function TransactionsPage() {
   const [withdrawals, setWithdrawals] = useState([]);
