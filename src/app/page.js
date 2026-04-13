@@ -454,20 +454,22 @@ const imageUrl = data.publicUrl;
 
 // save in DB (FIXED)
 const { error: dbError } = await supabase
-  .from("screenshots")
+  .from("submissions")
   .insert([
     {
       task_id: selectedTask.id,
       user_email: user,
       image_url: imageUrl,
-      status: "pending",
-    },
+      status: "pending"
+    }
   ]);
 
 if (dbError) {
+  console.error(dbError);
   alert("DB error ❌");
   return;
 }
+
       // ✅ Success UI
       setChat((prev) => [
         ...prev,
