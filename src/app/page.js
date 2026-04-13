@@ -546,8 +546,7 @@ function ProfilePage() {
   const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(true);
   const [mounted, setMounted] = useState(false);
-
-  const [user, setUser] = useState(null); // ✅ ADDED
+  const [user, setUser] = useState(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -563,9 +562,10 @@ function ProfilePage() {
 
     const loadUser = async () => {
       const { data: sessionData } = await supabase.auth.getSession();
-const currentUser = sessionData?.session?.user;
+      const currentUser = sessionData?.session?.user;
+
       if (currentUser) {
-        setUser(currentUser); // ✅ STORE USER
+        setUser(currentUser);
 
         const saved = JSON.parse(
           localStorage.getItem("gr_profile_" + currentUser.id) || "null"
@@ -585,7 +585,6 @@ const currentUser = sessionData?.session?.user;
         }
       }
 
-      // wallet logic (unchanged)
       const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
       const withdrawals = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
 
@@ -605,47 +604,47 @@ const currentUser = sessionData?.session?.user;
 
   if (!mounted) return null;
 
-  // ✅ FIXED SAVE FUNCTION
-const save = async () => {
-  try {
-    if (!form.name || !form.email || !form.details) {
-      alert("Fill all fields");
-      return;
-    }
-
-    const { data: sessionData } = await supabase.auth.getSession();
-    const currentUser = sessionData?.session?.user;
-
-    if (!currentUser) {
-      alert("User not found ❌");
-      return;
-    }
-
-    const { error } = await supabase.from("profiles").upsert([
-      {
-        id: currentUser.id,
-        name: form.name || "",
-        email: form.email || "",
-        method: form.method || "upi",
-        details: form.details || ""
+  const save = async () => {
+    try {
+      if (!form.name || !form.email || !form.details) {
+        alert("Fill all fields");
+        return;
       }
-    ]);
 
-    if (error) {
-      console.error("DB ERROR:", error);
-      alert(error.message || "Save failed ❌");
-      return;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUser = sessionData?.session?.user;
+
+      if (!currentUser) {
+        alert("User not found ❌");
+        return;
+      }
+
+      const { error } = await supabase.from("profiles").upsert([
+        {
+          id: currentUser.id,
+          name: form.name || "",
+          email: form.email || "",
+          method: form.method || "upi",
+          details: form.details || ""
+        }
+      ]);
+
+      if (error) {
+        console.error("DB ERROR:", error);
+        alert(error.message || "Save failed ❌");
+        return;
+      }
+
+      alert("Saved ✅");
+
+    } catch (err) {
+      console.error(err);
+      alert("Unexpected error ❌");
     }
+  };
 
-    alert("Saved ✅");
-
-  } catch (err) {
-    console.error(err);
-    alert("Unexpected error ❌");
-  }
-};
+  return (
     <div className="max-w-md mx-auto space-y-4">
-
       <Card className="p-5 space-y-3">
 
         {editing ? (
@@ -670,30 +669,25 @@ const save = async () => {
               className="w-full p-2 border rounded"
             >
               <option value="upi">UPI</option>
-             
             </select>
 
-<input
-  placeholder="Enter UPI ID"
-  value={form.details}
-  onChange={(e) =>
-    setForm({ ...form, details: e.target.value })
-  }
-  className="w-full p-2 border rounded"
-/>
+            <input
+              placeholder="Enter UPI ID"
+              value={form.details}
+              onChange={e => setForm({ ...form, details: e.target.value })}
+              className="w-full p-2 border rounded"
+            />
 
-            <div className="flex gap-2">
-              <Button className="w-full" onClick={save}>
-                Save
-              </Button>
-            </div>
+            <Button className="w-full" onClick={save}>
+              Save
+            </Button>
           </>
         ) : (
           <>
-            <h3 className="font-semibold text-lg">{profile.name}</h3>
-            <p>{profile.email}</p>
+            <h3 className="font-semibold text-lg">{profile?.name}</h3>
+            <p>{profile?.email}</p>
             <p className="text-sm text-gray-600">
-              {profile.method.toUpperCase()} : {profile.details}
+              {profile?.method?.toUpperCase()} : {profile?.details}
             </p>
 
             <div className="flex gap-2">
@@ -711,67 +705,11 @@ const save = async () => {
             </div>
           </>
         )}
+
       </Card>
-{editing ? (
-  <>
-    <input
-      placeholder="Name"
-      value={form.name}
-      onChange={e => setForm({ ...form, name: e.target.value })}
-      className="w-full p-2 border rounded"
-    />
-
-    <input
-      placeholder="Email"
-      value={form.email}
-      onChange={e => setForm({ ...form, email: e.target.value })}
-      className="w-full p-2 border rounded"
-    />
-
-    <select
-      value={form.method}
-      onChange={e => setForm({ ...form, method: e.target.value })}
-      className="w-full p-2 border rounded"
-    >
-      <option value="upi">UPI</option>
-    </select>
-
-    <input
-      placeholder="Enter UPI ID"
-      value={form.details}
-      onChange={e => setForm({ ...form, details: e.target.value })}
-      className="w-full p-2 border rounded"
-    />
-
-    <div className="flex gap-2">
-      <Button className="w-full" onClick={save}>
-        Save
-      </Button>
     </div>
-  </>
-) : (
-  <>
-    <h3 className="font-semibold text-lg">{profile.name}</h3>
-    <p>{profile.email}</p>
-    <p className="text-sm text-gray-600">
-      {profile.method.toUpperCase()} : {profile.details}
-    </p>
-
-    <div className="flex gap-2">
-      <Button onClick={() => setEditing(true)}>Edit</Button>
-
-      <Button
-        className="bg-red-500 text-white"
-        onClick={async () => {
-          await supabase.auth.signOut();
-          window.location.href = "/login";
-        }}
-      >
-        Logout
-      </Button>
-    </div>
-);
-)
+  );
+}
 // ---------------- TransactionPage ----------------
 function TransactionsPage() {
   const [withdrawals, setWithdrawals] = useState([]);
