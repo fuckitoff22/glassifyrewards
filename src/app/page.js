@@ -627,7 +627,8 @@ const currentUser = sessionData?.session?.user;
 if (error) {
   console.error("DB ERROR:", error);
   alert(error.message || "Save failed ❌");
-  return (
+  return;
+}
     <div className="max-w-md mx-auto space-y-4">
 
       <Card className="p-5 space-y-3">
