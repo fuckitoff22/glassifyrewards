@@ -225,14 +225,15 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
     };
   }, []);
 
-  const user = JSON.parse(localStorage.getItem("gr_profile") || "{}").email || "guest";
+  const user =
+    JSON.parse(localStorage.getItem("gr_profile") || "{}").email || "guest";
 
   // ✅ GET LATEST SUBMISSION ONLY
   const getLatestRecord = (taskId) => {
     const subs = JSON.parse(localStorage.getItem("gr_submissions") || "[]");
 
     const records = subs
-      .filter(s => s.taskId === taskId && s.user === user)
+      .filter((s) => s.taskId === taskId && s.user === user)
       .sort((a, b) => b.id - a.id);
 
     return records[0];
@@ -261,23 +262,27 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
     return "allow";
   };
 
-  const normal = tasks.filter(t => t.type === "normal");
-  const affiliate = tasks.filter(t => t.type === "affiliate" && t.subtype !== "ecommerce");
-  const ecommerce = tasks.filter(t => t.type === "affiliate" && t.subtype === "ecommerce");
+  const normal = tasks.filter((t) => t.type === "normal");
+  const affiliate = tasks.filter(
+    (t) => t.type === "affiliate" && t.subtype !== "ecommerce"
+  );
+  const ecommerce = tasks.filter(
+    (t) => t.type === "affiliate" && t.subtype === "ecommerce"
+  );
 
   return (
     <div>
       <div className="flex gap-2 mb-4">
-        <Button onClick={()=>setTab("normal")}>Normal</Button>
-        <Button onClick={()=>setTab("affiliate")}>Affiliate</Button>
+        <Button onClick={() => setTab("normal")}>Normal</Button>
+        <Button onClick={() => setTab("affiliate")}>Affiliate</Button>
       </div>
 
       {tab === "affiliate" && (
         <div className="mb-4">
           <h3>E-commerce Offers</h3>
           <div className="grid grid-cols-3 gap-3">
-            {ecommerce.map(t => (
-              <Card key={t.id} onClick={()=>window.open(t.link)}>
+            {ecommerce.map((t) => (
+              <Card key={t.id} onClick={() => window.open(t.link)}>
                 <CardContent className="p-3 text-center">
                   {t.logo && <img src={t.logo} className="w-10 mx-auto" />}
                   <p>{t.title}</p>
@@ -289,9 +294,9 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
       )}
 
       <div className="grid md:grid-cols-3 gap-3">
-        {(tab==="normal"?normal:affiliate)
-          .filter(t => getStatus(t.id) !== "hide") // remove approved
-          .map(t=>{
+        {(tab === "normal" ? normal : affiliate)
+          .filter((t) => getStatus(t.id) !== "hide")
+          .map((t) => {
             const status = getStatus(t.id);
             const isLocked = status !== "allow";
 
@@ -302,15 +307,21 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
                   <p>₹{t.reward}</p>
 
                   <div className="flex gap-2 mt-2">
-
                     {/* VISIT */}
                     <Button
                       disabled={isLocked}
-                      onClick={()=>{
+                      onClick={() => {
                         if (isLocked) {
                           setPopupTask(status);
                           return;
                         }
+
+                        // ✅ SAVE TASK BEFORE LEAVING
+                        localStorage.setItem(
+                          "selectedTask",
+                          JSON.stringify(t)
+                        );
+
                         window.open(t.link);
                       }}
                     >
@@ -326,13 +337,18 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
                           return;
                         }
 
+                        // ✅ SAVE TASK
+                        localStorage.setItem(
+                          "selectedTask",
+                          JSON.stringify(t)
+                        );
+
                         setSelectedTask(t);
                         setChatOpen(true);
                       }}
                     >
                       Submit
                     </Button>
-
                   </div>
                 </CardContent>
               </Card>
@@ -344,7 +360,6 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
       {popupTask && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-50">
           <div className="bg-white/20 backdrop-blur-xl border border-white/40 p-6 rounded-2xl shadow-xl w-80 text-center">
-            
             <h3 className="font-semibold mb-2">
               {popupTask === "pending" && "Under Verification"}
               {popupTask === "cooldown" && "Retry Locked"}
@@ -358,7 +373,7 @@ function TasksPage({ setChatOpen, setSelectedTask }) {
                 "This task was rejected. Please wait 30 minutes before retrying."}
             </p>
 
-            <Button className="mt-4" onClick={()=>setPopupTask(null)}>
+            <Button className="mt-4" onClick={() => setPopupTask(null)}>
               OK
             </Button>
           </div>
