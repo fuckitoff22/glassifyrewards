@@ -450,7 +450,7 @@ function Chatbot({ close, selectedTask }) {
 
       // ✅ Get public URL
       const { data } = supabase.storage
-        .from("submissions")
+        .from("screenshots")
         .getPublicUrl(fileName);
 
       const imageUrl = data?.publicUrl;
@@ -462,7 +462,7 @@ function Chatbot({ close, selectedTask }) {
 
       // ✅ Insert into DB
       const { error: dbError } = await supabase
-        .from("submissions")
+        .from("screenshots")
         .insert([
           {
             task_id: selectedTask.id,
