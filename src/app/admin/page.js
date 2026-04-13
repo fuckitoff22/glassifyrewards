@@ -14,15 +14,17 @@ export default function AdminPage() {
   const [users, setUsers] = useState([]);
   const [subs, setSubs] = useState([]);
   const [tasks, setTasks] = useState([]);
+
   const [withdrawals, setWithdrawals] = useState([]);
 
-  const [suspendUserId, setSuspendUserId] = useState(null);
-  const [suspendTime, setSuspendTime] = useState("");
+  const [editingWallet, setEditingWallet] = useState({});
 
   const [newTask, setNewTask] = useState({
     title: "",
     reward: "",
-    link: ""
+    link: "",
+    type: "normal",
+    logo: ""
   });
 
   // 🔐 ACCESS
@@ -53,8 +55,12 @@ export default function AdminPage() {
 
   // ================= USERS =================
 
-  const updateWallet = async (id, amount) => {
-    await supabase.from("profiles").update({ wallet: amount }).eq("id", id);
+  const saveWallet = async (id) => {
+    await supabase
+      .from("profiles")
+      .update({ wallet: Number(editingWallet[id]) })
+      .eq("id", id);
+
     loadData();
   };
 
@@ -63,18 +69,7 @@ export default function AdminPage() {
       .from("profiles")
       .update({ status: u.status === "banned" ? "active" : "banned" })
       .eq("id", u.id);
-    loadData();
-  };
 
-  const applySuspend = async () => {
-    const until = new Date(Date.now() + suspendTime * 60000);
-    await supabase
-      .from("profiles")
-      .update({ suspended_until: until })
-      .eq("id", suspendUserId);
-
-    setSuspendUserId(null);
-    setSuspendTime("");
     loadData();
   };
 
@@ -87,11 +82,13 @@ export default function AdminPage() {
       {
         title: newTask.title,
         reward: Number(newTask.reward),
-        link: newTask.link
+        link: newTask.link,
+        type: newTask.type,
+        logo: newTask.logo || null
       }
     ]);
 
-    setNewTask({ title: "", reward: "", link: "" });
+    setNewTask({ title: "", reward: "", link: "", type: "normal", logo: "" });
     loadData();
   };
 
@@ -102,48 +99,30 @@ export default function AdminPage() {
 
   // ================= SUBMISSIONS =================
 
-  const approve = async (s) => {
-    await supabase.from("submissions").update({ status: "approved" }).eq("id", s.id);
-
-    const { data: user } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", s.user_id)
-      .single();
-
-    await supabase
-      .from("profiles")
-      .update({ wallet: (user.wallet || 0) + 50 })
-      .eq("id", s.user_id);
-
-    loadData();
-  };
-
-  const reject = async (s) => {
-    // ❌ delete image from storage
+  const handleDecision = async (s, action) => {
     const path = s.image_url.split("/").pop();
+
+    // delete from storage
     await supabase.storage.from("screenshots").remove([path]);
 
-    // ❌ delete DB row
+    // delete from DB
     await supabase.from("submissions").delete().eq("id", s.id);
 
+    // reward if approved
+    if (action === "approve") {
+      const { data: user } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", s.user_id)
+        .single();
+
+      await supabase
+        .from("profiles")
+        .update({ wallet: (user.wallet || 0) + 50 })
+        .eq("id", s.user_id);
+    }
+
     loadData();
-  };
-
-  // ================= WITHDRAW =================
-
-  const approveW = (i) => {
-    const w = [...withdrawals];
-    w[i].status = "approved";
-    localStorage.setItem("gr_withdrawals", JSON.stringify(w));
-    setWithdrawals(w);
-  };
-
-  const rejectW = (i) => {
-    const w = [...withdrawals];
-    w[i].status = "rejected";
-    localStorage.setItem("gr_withdrawals", JSON.stringify(w));
-    setWithdrawals(w);
   };
 
   if (!allowed) return null;
@@ -154,7 +133,7 @@ export default function AdminPage() {
       {/* NAV */}
       <div className="flex gap-6 border-b pb-2">
         <button onClick={() => setTab("dashboard")}>Dashboard</button>
-        <button onClick={() => setTab("tasks")}>Create Task</button>
+        <button onClick={() => setTab("tasks")}>Tasks</button>
         <button onClick={() => setTab("users")}>Users</button>
         <button onClick={() => setTab("subs")}>Submissions</button>
         <button onClick={() => setTab("pay")}>Payoff</button>
@@ -163,34 +142,62 @@ export default function AdminPage() {
       {/* DASHBOARD */}
       {tab === "dashboard" && (
         <div className="flex justify-between">
-          <p>Approved: {subs.filter(s => s.status === "approved").length}</p>
-          <p>Rejected: {subs.filter(s => s.status === "rejected").length}</p>
+          <p>Approved: {subs.length}</p>
           <p>Users: {users.length}</p>
         </div>
       )}
 
       {/* TASKS */}
       {tab === "tasks" && (
-        <div className="space-y-3">
-          <div className="flex gap-2">
-            <input placeholder="title" value={newTask.title}
-              onChange={e => setNewTask({ ...newTask, title: e.target.value })} />
+        <div className="space-y-4">
 
-            <input placeholder="reward" value={newTask.reward}
-              onChange={e => setNewTask({ ...newTask, reward: e.target.value })} />
+          {/* CREATE */}
+          <div className="flex gap-2 flex-wrap">
+            <input placeholder="Task name"
+              value={newTask.title}
+              onChange={(e) => setNewTask({ ...newTask, title: e.target.value })} />
 
-            <input placeholder="link" value={newTask.link}
-              onChange={e => setNewTask({ ...newTask, link: e.target.value })} />
+            <input placeholder="Link"
+              value={newTask.link}
+              onChange={(e) => setNewTask({ ...newTask, link: e.target.value })} />
+
+            <input placeholder="Reward"
+              value={newTask.reward}
+              onChange={(e) => setNewTask({ ...newTask, reward: e.target.value })} />
+
+            <select
+              value={newTask.type}
+              onChange={(e) => setNewTask({ ...newTask, type: e.target.value })}
+            >
+              <option value="normal">Normal</option>
+              <option value="affiliate">Affiliate</option>
+              <option value="ecommerce">Affiliate Ecommerce</option>
+            </select>
+
+            {newTask.type === "ecommerce" && (
+              <input
+                placeholder="Logo URL (png)"
+                onChange={(e) => setNewTask({ ...newTask, logo: e.target.value })}
+              />
+            )}
 
             <Button onClick={createTask}>Add</Button>
           </div>
 
-          {tasks.map(t => (
-            <div key={t.id} className="flex justify-between border p-2">
-              <span>{t.title} ₹{t.reward}</span>
-              <Button onClick={() => deleteTask(t.id)}>Delete</Button>
+          {/* LIST */}
+          {["normal", "affiliate", "ecommerce"].map(type => (
+            <div key={type}>
+              <h3 className="font-bold mt-3">{type.toUpperCase()}</h3>
+
+              {tasks.filter(t => t.type === type).map(t => (
+                <div key={t.id} className="flex justify-between border p-2">
+                  <span>{t.title} ₹{t.reward}</span>
+                  <Button onClick={() => deleteTask(t.id)}>Delete</Button>
+                </div>
+              ))}
             </div>
           ))}
+
         </div>
       )}
 
@@ -203,17 +210,17 @@ export default function AdminPage() {
               <p>{u.name}</p>
 
               <input
-                defaultValue={u.wallet}
-                onBlur={(e) => updateWallet(u.id, Number(e.target.value))}
+                placeholder="wallet"
+                onChange={(e) =>
+                  setEditingWallet({ ...editingWallet, [u.id]: e.target.value })
+                }
               />
 
               <div className="flex gap-2">
+                <Button onClick={() => saveWallet(u.id)}>Save</Button>
+
                 <Button onClick={() => toggleBan(u)}>
                   {u.status === "banned" ? "Unban" : "Ban"}
-                </Button>
-
-                <Button onClick={() => setSuspendUserId(u.id)}>
-                  Suspend
                 </Button>
               </div>
 
@@ -225,19 +232,33 @@ export default function AdminPage() {
       {/* SUBMISSIONS */}
       {tab === "subs" && (
         <div className="space-y-4">
-          {subs.map(s => (
-            <div key={s.id} className="border p-3 space-y-2">
 
-              <p>{s.task_name}</p>
-              <img src={s.image_url} className="w-40" />
+          {subs.map(s => {
+            const user = users.find(u => u.id === s.user_id);
 
-              <div className="flex gap-2">
-                <Button onClick={() => approve(s)}>Approve</Button>
-                <Button onClick={() => reject(s)}>Reject</Button>
+            return (
+              <div key={s.id} className="border p-3 space-y-2">
+
+                <p>{user?.name}</p>
+                <p>{user?.email}</p>
+
+                <a href={s.image_url} target="_blank">
+                  <Button>View Screenshot</Button>
+                </a>
+
+                <div className="flex gap-2">
+                  <Button onClick={() => handleDecision(s, "approve")}>
+                    Approve
+                  </Button>
+                  <Button onClick={() => handleDecision(s, "reject")}>
+                    Reject
+                  </Button>
+                </div>
+
               </div>
+            );
+          })}
 
-            </div>
-          ))}
         </div>
       )}
 
@@ -249,33 +270,11 @@ export default function AdminPage() {
               <span>₹{w.amount}</span>
 
               <div className="flex gap-2">
-                <Button onClick={() => approveW(i)}>Approve</Button>
-                <Button onClick={() => rejectW(i)}>Reject</Button>
+                <Button>Approve</Button>
+                <Button>Reject</Button>
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* SUSPEND POPUP */}
-      {suspendUserId && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
-          <div className="bg-white p-5 space-y-3">
-
-            <h3>Suspend (minutes)</h3>
-
-            <input
-              type="number"
-              value={suspendTime}
-              onChange={(e) => setSuspendTime(e.target.value)}
-            />
-
-            <div className="flex gap-2">
-              <Button onClick={applySuspend}>Apply</Button>
-              <Button onClick={() => setSuspendUserId(null)}>Cancel</Button>
-            </div>
-
-          </div>
         </div>
       )}
 
