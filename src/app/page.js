@@ -622,17 +622,14 @@ function ProfilePage() {
               className="w-full p-2 border rounded"
             >
               <option value="upi">UPI</option>
-              <option value="wallet">Wallet</option>
-              <option value="bank">Bank</option>
+             
             </select>
 
             <input
               placeholder={
                 form.method === "upi"
                   ? "Enter UPI ID"
-                  : form.method === "wallet"
-                  ? "Enter Wallet Number"
-                  : "Enter Bank Details"
+                  
               }
               value={form.details}
               onChange={e => setForm({ ...form, details: e.target.value })}
