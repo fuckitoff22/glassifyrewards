@@ -454,7 +454,7 @@ const imageUrl = data.publicUrl;
 
 // save in DB (FIXED)
 const { error: dbError } = await supabase
-  .from("submissions")
+  .from("screenshots")
   .insert([
     {
       task_id: selectedTask.id,
@@ -536,6 +536,8 @@ if (dbError) {
 }
 // ---------------- Profile ----------------
 function ProfilePage() {
+  const [showWithdraw, setShowWithdraw] = useState(false);
+const [withdrawAmount, setWithdrawAmount] = useState("");
   const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -635,7 +637,15 @@ function ProfilePage() {
       }
 
       alert("Saved ✅");
-      setEditing(false);
+
+// ✅ UPDATE UI instantly
+setProfile({
+  name: form.name,
+  email: form.email,
+  upi: form.upi
+});
+
+setEditing(false);
 
     } catch (err) {
       console.error(err);
@@ -645,11 +655,68 @@ function ProfilePage() {
 
   return (
     <div className="max-w-md mx-auto space-y-4">
+<div 
+  onClick={() => setShowWithdraw(true)}
+  className="p-3 rounded-xl bg-green-100 text-green-800 font-semibold text-center cursor-pointer"
+>
+  Wallet Balance: ₹{balance} (Click to withdraw)
+</div>
+    {showWithdraw && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="bg-white p-5 rounded-xl w-80 space-y-3">
 
-      {/* WALLET */}
-      <div className="p-3 rounded-xl bg-green-100 text-green-800 font-semibold text-center">
-        Wallet Balance: ₹{balance}
+      <h3 className="font-semibold text-lg">Withdraw</h3>
+
+      <input
+        type="number"
+        placeholder="Enter amount"
+        value={withdrawAmount}
+        onChange={(e) => setWithdrawAmount(e.target.value)}
+        className="w-full p-2 border rounded"
+      />
+
+      <div className="flex gap-2">
+        <Button
+          className="w-full"
+          onClick={() => {
+            const amt = Number(withdrawAmount);
+
+            if (amt < 100) {
+              alert("Minimum withdraw ₹100 ❌");
+              return;
+            }
+
+            if (amt > balance) {
+              alert("Insufficient balance ❌");
+              return;
+            }
+
+            const withdrawals = JSON.parse(localStorage.getItem("gr_withdrawals") || "[]");
+
+            withdrawals.push({
+              id: Date.now(),
+              amount: amt,
+              status: "pending"
+            });
+
+            localStorage.setItem("gr_withdrawals", JSON.stringify(withdrawals));
+
+            alert("Withdrawal requested ✅");
+            setShowWithdraw(false);
+            setWithdrawAmount("");
+          }}
+        >
+          Submit
+        </Button>
+
+        <Button variant="outline" onClick={() => setShowWithdraw(false)}>
+          Cancel
+        </Button>
       </div>
+
+    </div>
+  </div>
+)}
 
       <Card className="p-5 space-y-3">
 
