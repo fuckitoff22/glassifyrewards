@@ -770,8 +770,8 @@ const save = async () => {
         Logout
       </Button>
     </div>
-  </>
-)}
+);
+)
 // ---------------- TransactionPage ----------------
 function TransactionsPage() {
   const [withdrawals, setWithdrawals] = useState([]);
