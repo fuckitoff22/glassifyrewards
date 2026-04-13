@@ -790,6 +790,6 @@ function TransactionsPage() {
         </Card>
       ))}
 
-   );
+  
 
 
