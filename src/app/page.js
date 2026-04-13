@@ -651,26 +651,80 @@ function ProfilePage() {
         )}
 
       </div>
+{showWithdraw && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fadeIn">
 
-      {showWithdraw && (
-        @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
+    <div className="bg-white p-5 rounded-2xl w-80 space-y-4 animate-scaleIn">
 
-@keyframes scaleIn {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
+      <h3 className="font-semibold text-lg">Withdraw</h3>
 
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease;
-}
+      <input
+        type="number"
+        placeholder="Enter amount"
+        value={withdrawAmount}
+        onChange={(e) => setWithdrawAmount(e.target.value)}
+        className="w-full p-2 border rounded"
+      />
 
-.animate-scaleIn {
-  animation: scaleIn 0.25s ease;
-}
+      <div className="flex gap-2">
 
+        <Button
+          className="w-full"
+          onClick={async () => {
+            const amt = Number(withdrawAmount);
+
+            if (amt < 100) {
+              alert("Minimum ₹100");
+              return;
+            }
+
+            if (amt > balance) {
+              alert("Insufficient");
+              return;
+            }
+
+            const { data: sessionData } = await supabase.auth.getSession();
+            const user = sessionData?.session?.user;
+
+            // ✅ CREATE REQUEST
+            await supabase.from("withdrawals").insert([
+              {
+                user_id: user.id,
+                amount: amt,
+                status: "pending"
+              }
+            ]);
+
+            // ✅ DEDUCT BALANCE
+            await supabase
+              .from("profiles")
+              .update({ wallet: balance - amt })
+              .eq("id", user.id);
+
+            // ✅ UPDATE UI
+            setBalance(balance - amt);
+
+            alert("Withdrawal initiated ✅\nWait 24–48 hrs");
+
+            setShowWithdraw(false);
+            setWithdrawAmount("");
+          }}
+        >
+          Withdraw
+        </Button>
+
+        <Button
+          variant="outline"
+          onClick={() => setShowWithdraw(false)}
+        >
+          Cancel
+        </Button>
+
+      </div>
+
+    </div>
+  </div>
+)}
             <h3>Withdraw</h3>
 
             <input
