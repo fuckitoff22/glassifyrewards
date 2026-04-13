@@ -1,80 +1,56 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/button";
 
 export default function AdminPage() {
-  const router = useRouter();
 
-  const [tab, setTab] = useState("dashboard");
-  const [allowed, setAllowed] = useState(false);
+  const [tab, setTab] = useState("tasks");
+  const [taskType, setTaskType] = useState("normal");
 
-  const [users, setUsers] = useState([]);
-  const [subs, setSubs] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
+  const [users, setUsers] = useState([]);
 
-  const [walletEdit, setWalletEdit] = useState({});
-
-  const [taskForm, setTaskForm] = useState({
+  const [newTask, setNewTask] = useState({
     title: "",
-    reward: "",
     link: "",
+    reward: "",
     type: "normal",
     logo: ""
   });
 
-  // 🔐 ACCESS
-  useEffect(() => {
-    const key = new URLSearchParams(window.location.search).get("key");
-    if (key !== process.env.NEXT_PUBLIC_ADMIN_KEY) {
-      router.push("/");
-    } else {
-      setAllowed(true);
-      loadData();
-    }
-  }, []);
-
-  // 🔄 LOAD DATA
+  // ================= LOAD =================
   const loadData = async () => {
-    const { data: u } = await supabase.from("profiles").select("*");
-    const { data: s } = await supabase.from("submissions").select("*");
+
     const { data: t } = await supabase.from("tasks").select("*");
     const { data: w } = await supabase.from("withdrawals").select("*");
+    const { data: u } = await supabase.from("profiles").select("*");
 
-    setUsers(u || []);
-    setSubs(s || []);
     setTasks(t || []);
     setWithdrawals(w || []);
+    setUsers(u || []);
   };
 
-  // ================= USERS =================
-
-  const saveWallet = async (id) => {
-    await supabase
-      .from("profiles")
-      .update({ wallet: Number(walletEdit[id]) })
-      .eq("id", id);
-
+  useEffect(() => {
     loadData();
-  };
-
-  const toggleBan = async (u) => {
-    await supabase
-      .from("profiles")
-      .update({ status: u.status === "banned" ? "active" : "banned" })
-      .eq("id", u.id);
-
-    loadData();
-  };
+  }, []);
 
   // ================= TASK =================
 
   const createTask = async () => {
-    await supabase.from("tasks").insert([taskForm]);
-    setTaskForm({ title: "", reward: "", link: "", type: "normal", logo: "" });
+    if (!newTask.title) return;
+
+    await supabase.from("tasks").insert([newTask]);
+
+    setNewTask({
+      title: "",
+      link: "",
+      reward: "",
+      type: taskType,
+      logo: ""
+    });
+
     loadData();
   };
 
@@ -83,41 +59,26 @@ export default function AdminPage() {
     loadData();
   };
 
-  // ================= SUBMISSIONS =================
-
-  const handleDecision = async (s, type) => {
-    const path = s.image_url.split("/screenshots/")[1];
-
-    if (path) {
-      await supabase.storage.from("screenshots").remove([path]);
-    }
-
-    await supabase.from("submissions").delete().eq("id", s.id);
-
-    if (type === "approve") {
-      const { data: user } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", s.user_id)
-        .single();
-
-      await supabase
-        .from("profiles")
-        .update({ wallet: (user.wallet || 0) + 50 })
-        .eq("id", s.user_id);
-    }
-
+  const updateTask = async (task) => {
+    await supabase.from("tasks").update(task).eq("id", task.id);
     loadData();
   };
 
-  // ================= PAYOUT =================
+  // ================= WITHDRAW =================
 
   const approveWithdraw = async (w) => {
+    // update status
     await supabase
       .from("withdrawals")
       .update({ status: "approved" })
       .eq("id", w.id);
 
+    // deduct already done → do nothing OR ensure consistency
+    loadData();
+  };
+
+  const rejectWithdraw = async (w) => {
+    // refund user
     const { data: user } = await supabase
       .from("profiles")
       .select("*")
@@ -126,13 +87,9 @@ export default function AdminPage() {
 
     await supabase
       .from("profiles")
-      .update({ wallet: (user.wallet || 0) - w.amount })
+      .update({ wallet: (user.wallet || 0) + w.amount })
       .eq("id", w.user_id);
 
-    loadData();
-  };
-
-  const rejectWithdraw = async (w) => {
     await supabase
       .from("withdrawals")
       .update({ status: "rejected" })
@@ -141,182 +98,133 @@ export default function AdminPage() {
     loadData();
   };
 
-  if (!allowed) return null;
-
   return (
     <div className="p-6 space-y-6">
 
       {/* NAV */}
       <div className="flex gap-4 border-b pb-2">
-        <button onClick={() => setTab("dashboard")}>Dashboard</button>
         <button onClick={() => setTab("tasks")}>Tasks</button>
         <button onClick={() => setTab("ecom")}>Ecommerce</button>
-        <button onClick={() => setTab("users")}>Users</button>
-        <button onClick={() => setTab("subs")}>Submissions</button>
-        <button onClick={() => setTab("pay")}>Payouts</button>
+        <button onClick={() => setTab("withdraw")}>Withdrawals</button>
       </div>
 
-      {/* DASHBOARD */}
-      {tab === "dashboard" && (
-        <div className="flex justify-between">
-          <p>Users: {users.length}</p>
-          <p>Tasks: {tasks.length}</p>
-          <p>Submissions: {subs.length}</p>
-        </div>
-      )}
-
-      {/* TASKS (NORMAL + AFFILIATE) */}
+      {/* ================= TASKS ================= */}
       {tab === "tasks" && (
         <div className="space-y-4">
 
-          <div className="flex gap-2">
-            <input placeholder="Title"
-              value={taskForm.title}
-              onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} />
-
-            <input placeholder="Reward"
-              value={taskForm.reward}
-              onChange={e => setTaskForm({ ...taskForm, reward: e.target.value })} />
-
-            <input placeholder="Link"
-              value={taskForm.link}
-              onChange={e => setTaskForm({ ...taskForm, link: e.target.value })} />
-
-            <select
-              value={taskForm.type}
-              onChange={e => setTaskForm({ ...taskForm, type: e.target.value })}
-            >
-              <option value="normal">Normal</option>
-              <option value="affiliate">Affiliate</option>
-            </select>
-
-            <Button onClick={createTask}>Add</Button>
+          {/* TYPE SWITCH */}
+          <div className="flex gap-3">
+            <button onClick={() => setTaskType("normal")}>Normal</button>
+            <button onClick={() => setTaskType("affiliate")}>Affiliate</button>
           </div>
 
+          {/* CREATE */}
+          <div className="flex gap-2">
+            <input
+              placeholder="Title"
+              value={newTask.title}
+              onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+            />
+
+            <input
+              placeholder="Link"
+              value={newTask.link}
+              onChange={(e) => setNewTask({ ...newTask, link: e.target.value })}
+            />
+
+            <input
+              placeholder="Reward"
+              value={newTask.reward}
+              onChange={(e) => setNewTask({ ...newTask, reward: e.target.value })}
+            />
+
+            <button onClick={createTask}>Add</button>
+          </div>
+
+          {/* LIST */}
           {tasks
-            .filter(t => t.type !== "ecommerce")
+            .filter(t => t.type === taskType)
             .map(t => (
-              <div key={t.id} className="flex justify-between border p-2">
-                {t.title} ₹{t.reward}
-                <Button onClick={() => deleteTask(t.id)}>Delete</Button>
+              <div key={t.id} className="border p-2 flex justify-between">
+
+                <div>
+                  <p>{t.title}</p>
+                  <p>{t.reward}</p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button onClick={() => deleteTask(t.id)}>Delete</button>
+                </div>
+
               </div>
           ))}
 
         </div>
       )}
 
-      {/* ECOMMERCE */}
+      {/* ================= ECOMMERCE ================= */}
       {tab === "ecom" && (
         <div className="space-y-4">
 
           <div className="flex gap-2">
             <input placeholder="Title"
-              onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} />
-
-            <input placeholder="Reward"
-              onChange={e => setTaskForm({ ...taskForm, reward: e.target.value })} />
+              onChange={(e) => setNewTask({ ...newTask, title: e.target.value, type: "ecommerce" })} />
 
             <input placeholder="Link"
-              onChange={e => setTaskForm({ ...taskForm, link: e.target.value })} />
+              onChange={(e) => setNewTask({ ...newTask, link: e.target.value })} />
+
+            <input placeholder="Reward"
+              onChange={(e) => setNewTask({ ...newTask, reward: e.target.value })} />
 
             <input placeholder="Logo URL"
-              onChange={e => setTaskForm({ ...taskForm, logo: e.target.value, type: "ecommerce" })} />
+              onChange={(e) => setNewTask({ ...newTask, logo: e.target.value })} />
 
-            <Button onClick={createTask}>Add</Button>
+            <button onClick={createTask}>Add</button>
           </div>
 
           {tasks
             .filter(t => t.type === "ecommerce")
             .map(t => (
-              <div key={t.id} className="flex justify-between border p-2">
-                <img src={t.logo} className="w-8" />
-                {t.title}
-                <Button onClick={() => deleteTask(t.id)}>Delete</Button>
+              <div key={t.id} className="border p-2 flex justify-between">
+
+                <div>
+                  <img src={t.logo} className="w-8" />
+                  <p>{t.title}</p>
+                </div>
+
+                <button onClick={() => deleteTask(t.id)}>Delete</button>
+
               </div>
           ))}
 
         </div>
       )}
 
-      {/* USERS */}
-      {tab === "users" && (
-        <div className="space-y-3">
-          {users.map(u => (
-            <div key={u.id} className="border p-3">
+      {/* ================= WITHDRAW ================= */}
+      {tab === "withdraw" && (
+        <div className="space-y-4">
 
-              <p>{u.name}</p>
-
-              <input
-                placeholder="Wallet"
-                value={walletEdit[u.id] ?? u.wallet ?? ""}
-                onChange={e =>
-                  setWalletEdit({ ...walletEdit, [u.id]: e.target.value })
-                }
-              />
-
-              <div className="flex gap-2 mt-2">
-                <Button onClick={() => saveWallet(u.id)}>Save</Button>
-
-                <Button onClick={() => toggleBan(u)}>
-                  {u.status === "banned" ? "Unban" : "Ban"}
-                </Button>
-              </div>
-
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* SUBMISSIONS */}
-      {tab === "subs" && (
-        <div className="space-y-3">
-          {subs.map(s => {
-            const user = users.find(u => u.id === s.user_id);
+          {withdrawals.map(w => {
+            const user = users.find(u => u.id === w.user_id);
 
             return (
-              <div key={s.id} className="border p-3">
+              <div key={w.id} className="border p-3 flex justify-between">
 
-                <p>{user?.name}</p>
-                <p>{user?.email}</p>
+                <div>
+                  <p>{user?.name}</p>
+                  <p>₹{w.amount}</p>
+                  <p>{w.status}</p>
+                </div>
 
-                <a href={s.image_url} target="_blank">
-                  <Button>View Screenshot</Button>
-                </a>
-
-                <div className="flex gap-2 mt-2">
-                  <Button onClick={() => handleDecision(s, "approve")}>
-                    Approve
-                  </Button>
-
-                  <Button onClick={() => handleDecision(s, "reject")}>
-                    Reject
-                  </Button>
+                <div className="flex gap-2">
+                  <button onClick={() => approveWithdraw(w)}>Approve</button>
+                  <button onClick={() => rejectWithdraw(w)}>Reject</button>
                 </div>
 
               </div>
             );
           })}
-        </div>
-      )}
 
-      {/* PAYOUT */}
-      {tab === "pay" && (
-        <div className="space-y-3">
-          {withdrawals.map(w => (
-            <div key={w.id} className="border p-3 flex justify-between">
-
-              <div>
-                <p>₹{w.amount}</p>
-                <p>{w.status}</p>
-              </div>
-
-              <div className="flex gap-2">
-                <Button onClick={() => approveWithdraw(w)}>Approve</Button>
-                <Button onClick={() => rejectWithdraw(w)}>Reject</Button>
-              </div>
-
-            </div>
-          ))}
         </div>
       )}
 
