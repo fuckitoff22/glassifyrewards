@@ -609,124 +609,163 @@ function ProfilePage() {
   };
 
   return (
-  <div className="max-w-md mx-auto space-y-5 p-4">
+    <div className="max-w-md mx-auto space-y-5 p-4">
 
-    <div
-      onClick={() => setShowWithdraw(true)}
-      className="cursor-pointer rounded-2xl p-4 bg-white/30 backdrop-blur-xl border border-white/20 shadow-lg text-center"
-    >
-      <p className="text-sm text-gray-600">Wallet Balance</p>
-      <h2 className="text-2xl font-bold text-green-700">₹{balance}</h2>
-      <p className="text-xs text-gray-500 mt-1">Tap to withdraw</p>
-    </div>
+      <div
+        onClick={() => setShowWithdraw(true)}
+        className="cursor-pointer rounded-2xl p-4 bg-white/30 backdrop-blur-xl border border-white/20 shadow-lg text-center"
+      >
+        <p className="text-sm text-gray-600">Wallet Balance</p>
+        <h2 className="text-2xl font-bold text-green-700">₹{balance}</h2>
+        <p className="text-xs text-gray-500 mt-1">Tap to withdraw</p>
+      </div>
 
-    <div className="rounded-2xl p-5 bg-white/30 backdrop-blur-xl border border-white/20 shadow-lg space-y-4">
+      <div className="rounded-2xl p-5 bg-white/30 backdrop-blur-xl border border-white/20 shadow-lg space-y-4">
 
-      <h2 className="text-lg font-semibold">Profile</h2>
+        <h2 className="text-lg font-semibold">Profile</h2>
 
-      {editing ? (
-        <>
-          <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-          <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-          <input value={form.upi} onChange={e => setForm({ ...form, upi: e.target.value })} />
-          <Button onClick={save}>Save</Button>
-        </>
-      ) : (
-        <>
-          <p>{profile?.name}</p>
-          <p>{profile?.email}</p>
-          <p>{profile?.upi}</p>
+        {editing ? (
+          <>
+            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+            <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+            <input value={form.upi} onChange={e => setForm({ ...form, upi: e.target.value })} />
+            <Button onClick={save}>Save</Button>
+          </>
+        ) : (
+          <>
+            <p>{profile?.name}</p>
+            <p>{profile?.email}</p>
+            <p>{profile?.upi}</p>
 
-          <Button onClick={() => setEditing(true)}>Edit</Button>
+            <Button onClick={() => setEditing(true)}>Edit</Button>
 
-          <Button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              window.location.href = "/login";
-            }}
-          >
-            Logout
-          </Button>
-        </>
+            <Button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.href = "/login";
+              }}
+            >
+              Logout
+            </Button>
+          </>
+        )}
+
+      </div>
+
+      {/* WITHDRAW POPUP */}
+      {showWithdraw && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fadeIn">
+
+          <div className="bg-white p-5 rounded-2xl w-80 space-y-4 animate-scaleIn">
+
+            <h3 className="font-semibold text-lg">Withdraw</h3>
+
+            <input
+              type="number"
+              placeholder="Enter amount"
+              value={withdrawAmount}
+              onChange={(e) => setWithdrawAmount(e.target.value)}
+              className="w-full p-2 border rounded"
+            />
+
+            <div className="flex gap-2">
+
+              <Button
+                className="w-full"
+                onClick={async () => {
+                  const amt = Number(withdrawAmount);
+
+                  if (amt < 100) {
+                    alert("Minimum ₹100");
+                    return;
+                  }
+
+                  if (amt > balance) {
+                    alert("Insufficient");
+                    return;
+                  }
+
+                  const { data: sessionData } = await supabase.auth.getSession();
+                  const user = sessionData?.session?.user;
+
+                  await supabase.from("withdrawals").insert([
+                    {
+                      user_id: user.id,
+                      amount: amt,
+                      status: "pending"
+                    }
+                  ]);
+
+                  await supabase
+                    .from("profiles")
+                    .update({ wallet: balance - amt })
+                    .eq("id", user.id);
+
+                  setBalance(balance - amt);
+
+                  alert("Withdrawal initiated ✅\nWait 24–48 hrs");
+
+                  setShowWithdraw(false);
+                  setWithdrawAmount("");
+                }}
+              >
+                Withdraw
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => setShowWithdraw(false)}
+              >
+                Cancel
+              </Button>
+
+            </div>
+
+          </div>
+        </div>
       )}
 
     </div>
+  );
+}
 
-    {/* WITHDRAW POPUP */}
-    {showWithdraw && (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fadeIn">
 
-        <div className="bg-white p-5 rounded-2xl w-80 space-y-4 animate-scaleIn">
+// ---------------- TransactionPage ----------------
 
-          <h3 className="font-semibold text-lg">Withdraw</h3>
+function TransactionsPage() {
+  const [withdrawals, setWithdrawals] = useState([]);
 
-          <input
-            type="number"
-            placeholder="Enter amount"
-            value={withdrawAmount}
-            onChange={(e) => setWithdrawAmount(e.target.value)}
-            className="w-full p-2 border rounded"
-          />
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from("withdrawals")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-          <div className="flex gap-2">
+      setWithdrawals(data || []);
+    };
 
-            <Button
-              className="w-full"
-              onClick={async () => {
-                const amt = Number(withdrawAmount);
+    load();
+  }, []);
 
-                if (amt < 100) {
-                  alert("Minimum ₹100");
-                  return;
-                }
+  return (
+    <div className="space-y-4">
 
-                if (amt > balance) {
-                  alert("Insufficient");
-                  return;
-                }
+      <h2>Transactions</h2>
 
-                const { data: sessionData } = await supabase.auth.getSession();
-                const user = sessionData?.session?.user;
+      {withdrawals.map((w) => (
+        <Card key={w.id}>
+          <CardContent>
+            <p>₹{w.amount}</p>
+            <p>{w.status}</p>
+            <p>{new Date(w.created_at).toLocaleString()}</p>
+          </CardContent>
+        </Card>
+      ))}
 
-                await supabase.from("withdrawals").insert([
-                  {
-                    user_id: user.id,
-                    amount: amt,
-                    status: "pending"
-                  }
-                ]);
-
-                await supabase
-                  .from("profiles")
-                  .update({ wallet: balance - amt })
-                  .eq("id", user.id);
-
-                setBalance(balance - amt);
-
-                alert("Withdrawal initiated ✅\nWait 24–48 hrs");
-
-                setShowWithdraw(false);
-                setWithdrawAmount("");
-              }}
-            >
-              Withdraw
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => setShowWithdraw(false)}
-            >
-              Cancel
-            </Button>
-
-          </div>
-
-        </div>
-      </div>
-    )}
-
-  </div>
-);
+    </div>
+  );
+}
 // ---------------- TransactionPage ----------------
 
 function TransactionsPage() {
