@@ -453,20 +453,23 @@ const { data } = supabase.storage
 const imageUrl = data.publicUrl;
 
 // save in DB (FIXED)
+const { data: sessionData } = await supabase.auth.getSession();
+const currentUser = sessionData?.session?.user;
+
 const { error: dbError } = await supabase
   .from("submissions")
   .insert([
     {
-      task_id: selectedTask.id,
-      user_email: user,
+      user_id: currentUser?.id,
+      task_name: selectedTask?.title,
       image_url: imageUrl,
       status: "pending"
     }
   ]);
 
 if (dbError) {
-  console.error(dbError);
-  alert("DB error ❌");
+  console.error("DB ERROR:", dbError);
+  alert(dbError.message || "DB error ❌");
   return;
 }
 
