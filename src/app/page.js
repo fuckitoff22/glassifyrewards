@@ -606,29 +606,44 @@ const currentUser = sessionData?.session?.user;
   if (!mounted) return null;
 
   // ✅ FIXED SAVE FUNCTION
-  const save = async () => {
+const save = async () => {
   try {
     if (!form.name || !form.email || !form.details) {
       alert("Fill all fields");
       return;
     }
 
-    // 🔥 ALWAYS FETCH FRESH USER (NO STATE DEPENDENCE)
-   const { error } = await supabase.from("profiles").upsert([
-  {
-    id: currentUser.id,
-    name: form.name || "",
-    email: form.email || "",
-    method: form.method || "upi",
-    details: form.details || ""
-  }
-]);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUser = sessionData?.session?.user;
 
-if (error) {
-  console.error("DB ERROR:", error);
-  alert(error.message || "Save failed ❌");
-  return;
-}
+    if (!currentUser) {
+      alert("User not found ❌");
+      return;
+    }
+
+    const { error } = await supabase.from("profiles").upsert([
+      {
+        id: currentUser.id,
+        name: form.name || "",
+        email: form.email || "",
+        method: form.method || "upi",
+        details: form.details || ""
+      }
+    ]);
+
+    if (error) {
+      console.error("DB ERROR:", error);
+      alert(error.message || "Save failed ❌");
+      return;
+    }
+
+    alert("Saved ✅");
+
+  } catch (err) {
+    console.error(err);
+    alert("Unexpected error ❌");
+  }
+};
     <div className="max-w-md mx-auto space-y-4">
 
       <Card className="p-5 space-y-3">
