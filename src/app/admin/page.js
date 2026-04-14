@@ -31,17 +31,19 @@ export default function AdminPanel() {
 }, []);
 
   // ================= LOAD =================
-  const load = async () => {
-    const { data: t } = await supabase.from("tasks").select("*");
-    const { data: s } = await supabase.from("submissions").select("*");
-    const { data: u } = await supabase.from("profiles").select("*");
-    const { data: w } = await supabase.from("withdrawals").select("*");
+const load = async () => {
+  const { data: t, error: tErr } = await supabase.from("tasks").select("*");
+  const { data: s, error: sErr } = await supabase.from("submissions").select("*");
+  const { data: u, error: uErr } = await supabase.from("profiles").select("*");
+  const { data: w, error: wErr } = await supabase.from("withdrawals").select("*");
 
-    setTasks(t || []);
-    setSubmissions(s || []);
-    setUsers(u || []);
-    setWithdrawals(w || []);
-  };
+  console.log({ tErr, sErr, uErr, wErr });
+
+  setTasks(t || []);
+  setSubmissions(s || []);
+  setUsers(u || []);
+  setWithdrawals(w || []);
+};
 
   useEffect(() => {
     load();
@@ -63,7 +65,6 @@ export default function AdminPanel() {
     } else {
       await supabase.from("tasks").insert([
         {
-          id: Date.now(),
           ...form,
           reward:Number(form.reward)
         }
@@ -192,10 +193,14 @@ export default function AdminPanel() {
               onChange={e=>setForm({...form,reward:e.target.value})}
             />
 
-            <select className="w-full p-3 border"
-              value={form.type}
-              onChange={e=>setForm({...form,type:e.target.value})}
-            >
+          onChange={e=>{
+  const value = e.target.value;
+  setForm({
+    ...form,
+    type:value,
+    subtype: value === "affiliate" ? "ecommerce" : ""
+  });
+}}
               <option value="normal">Normal</option>
               <option value="affiliate">Affiliate</option>
             </select>
