@@ -49,36 +49,31 @@ export default function AdminPanel() {
   }, []);
 
   // ================= TASK =================
- const saveTask = async () => {
-  if (!form.title) return alert("Title required");
+  const saveTask = async () => {
+    if (!form.title) return alert("Title required");
 
-  const { error } = await supabase.from("tasks").insert([{
-    ...form,
-    reward: Number(form.reward)
-  }]);
+    const { error } = await supabase.from("tasks").insert([{
+      ...form,
+      reward: Number(form.reward)
+    }]);
 
-  console.log("TASK ERROR:", error);
+    if (error) return alert("Task failed ❌");
 
-  if (error) {
-    alert("Task failed ❌");
-    return;
-  }
+    alert("Task created ✅");
 
-  alert("Task created ✅");
+    setForm({
+      title: "",
+      link: "",
+      reward: "",
+      type: "normal",
+      subtype: "",
+      logo: null
+    });
 
-  setForm({
-    title: "",
-    link: "",
-    reward: "",
-    type: "normal",
-    subtype: "",
-    logo: null
-  });
+    load();
+  };
 
-  load();
-};
-
-  // ================= SUBMISSIONS =================
+  // ================= SUBMISSION =================
   const handleSubmission = async (id, status) => {
     const { data: sub } = await supabase
       .from("submissions")
@@ -88,7 +83,6 @@ export default function AdminPanel() {
 
     if (!sub) return;
 
-    // ✅ APPROVE → ADD MONEY
     if (status === "approved") {
       const { data: task } = await supabase
         .from("tasks")
@@ -112,19 +106,15 @@ export default function AdminPanel() {
       }
     }
 
-    // ❌ REJECT → cooldown
     if (status === "rejected") {
-      const cooldownTime = new Date(Date.now() + 30 * 60 * 1000);
+      const until = new Date(Date.now() + 30 * 60 * 1000);
 
       await supabase
         .from("profiles")
-        .update({
-          cooldown_until: cooldownTime.toISOString()
-        })
+        .update({ cooldown_until: until.toISOString() })
         .eq("id", sub.user_id);
     }
 
-    // 🗑 DELETE SUBMISSION (SS removed automatically)
     await supabase.from("submissions").delete().eq("id", id);
 
     load();
@@ -153,180 +143,166 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {/* CREATE TASK */}
-     {page === "create" && (
-  <Card className="max-w-2xl mx-auto">
-    <CardContent className="p-6 space-y-3">
+      {/* CREATE */}
+      {page === "create" && (
+        <Card className="max-w-2xl mx-auto">
+          <CardContent className="p-6 space-y-3">
 
-      <input
-        placeholder="Title"
-        value={form.title}
-        onChange={e => setForm({ ...form, title: e.target.value })}
-      />
+            <input placeholder="Title" value={form.title}
+              onChange={e => setForm({ ...form, title: e.target.value })} />
 
-      <input
-        placeholder="Link"
-        value={form.link}
-        onChange={e => setForm({ ...form, link: e.target.value })}
-      />
+            <input placeholder="Link" value={form.link}
+              onChange={e => setForm({ ...form, link: e.target.value })} />
 
-      <input
-        placeholder="Reward"
-        value={form.reward}
-        onChange={e => setForm({ ...form, reward: e.target.value })}
-      />
+            <input placeholder="Reward" value={form.reward}
+              onChange={e => setForm({ ...form, reward: e.target.value })} />
 
-      {/* TYPE SELECT */}
-      <select
-        value={form.type}
-        onChange={(e) => {
-          const value = e.target.value;
-          setForm({
-            ...form,
-            type: value,
-            subtype: value === "affiliate" ? "ecommerce" : ""
-          });
-        }}
-      >
-        <option value="normal">Normal</option>
-        <option value="affiliate">Affiliate</option>
-      </select>
+            <select value={form.type}
+              onChange={(e) => {
+                const value = e.target.value;
+                setForm({
+                  ...form,
+                  type: value,
+                  subtype: value === "affiliate" ? "ecommerce" : ""
+                });
+              }}>
+              <option value="normal">Normal</option>
+              <option value="affiliate">Affiliate</option>
+            </select>
 
-      {/* SUBTYPE SELECT */}
-      {form.type === "affiliate" && (
-        <select
-          value={form.subtype}
-          onChange={(e) =>
-            setForm({ ...form, subtype: e.target.value })
-          }
-        >
-          <option value="ecommerce">Ecommerce</option>
-          <option value="general">General</option>
-        </select>
+            {form.type === "affiliate" && (
+              <select value={form.subtype}
+                onChange={(e) =>
+                  setForm({ ...form, subtype: e.target.value })
+                }>
+                <option value="ecommerce">Ecommerce</option>
+                <option value="general">General</option>
+              </select>
+            )}
+
+            {form.type === "affiliate" && form.subtype === "ecommerce" && (
+              <input type="file"
+                onChange={(e) => {
+                  const reader = new FileReader();
+                  reader.onload = () =>
+                    setForm(prev => ({ ...prev, logo: reader.result }));
+                  reader.readAsDataURL(e.target.files[0]);
+                }}
+              />
+            )}
+
+            <Button onClick={saveTask}>Create</Button>
+
+          </CardContent>
+        </Card>
       )}
-
-      {/* FILE UPLOAD */}
-      {form.type === "affiliate" && form.subtype === "ecommerce" && (
-        <input
-          type="file"
-          onChange={(e) => {
-            const reader = new FileReader();
-            reader.onload = () =>
-              setForm(prev => ({ ...prev, logo: reader.result }));
-            reader.readAsDataURL(e.target.files[0]);
-          }}
-        />
-      )}
-
-      <Button onClick={saveTask}>
-        {editingId ? "Update" : "Create"}
-      </Button>
-
-    </CardContent>
-  </Card>
-)}
 
       {/* USERS */}
-     {page === "users" && (
-  <div className="grid gap-3">
-    {users.map(u => (
-      <Card key={u.id}>
-        <CardContent className="p-3 space-y-2">
+      {page === "users" && (
+        <div className="grid gap-3">
+          {users.map(u => (
+            <Card key={u.id}>
+              <CardContent className="p-3 space-y-2">
+                <p>{u.email}</p>
+                <p>Wallet: ₹{u.wallet || 0}</p>
 
-          <p>{u.email}</p>
-          <p>Wallet: ₹{u.wallet || 0}</p>
+                <Button onClick={async () => {
+                  const amt = prompt("Amount");
+                  if (!amt) return;
 
-          {/* ADD BALANCE */}
-          <Button onClick={async () => {
-            const amt = prompt("Enter amount");
-            if (!amt) return;
+                  await supabase
+                    .from("profiles")
+                    .update({ wallet: (u.wallet || 0) + Number(amt) })
+                    .eq("id", u.id);
 
-            await supabase
-              .from("profiles")
-              .update({
-                wallet: (u.wallet || 0) + Number(amt)
-              })
-              .eq("id", u.id);
+                  load();
+                }}>Add Balance</Button>
 
-            load();
-          }}>
-            Add Balance
-          </Button>
+                <Button onClick={async () => {
+                  await supabase
+                    .from("profiles")
+                    .update({ is_banned: !u.is_banned })
+                    .eq("id", u.id);
 
-          {/* BAN */}
-          <Button onClick={async () => {
-            await supabase
-              .from("profiles")
-              .update({
-                is_banned: !u.is_banned
-              })
-              .eq("id", u.id);
+                  load();
+                }}>
+                  {u.is_banned ? "Unban" : "Ban"}
+                </Button>
 
-            load();
-          }}>
-            {u.is_banned ? "Unban" : "Ban"}
-          </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-          {/* SUSPEND WITH TIMER */}
-          <Button onClick={async () => {
-            const mins = prompt("Suspend minutes?");
-            if (!mins) return;
-
-            const until = new Date(Date.now() + mins * 60000);
-
-            await supabase
-              .from("profiles")
-              .update({
-                suspended_until: until.toISOString()
-              })
-              .eq("id", u.id);
-
-            load();
-          }}>
-            Suspend
-          </Button>
-
-          {/* UNSUSPEND */}
-          <Button onClick={async () => {
-            await supabase
-              .from("profiles")
-              .update({
-                suspended_until: null
-              })
-              .eq("id", u.id);
-
-            load();
-          }}>
-            Unsuspend
-          </Button>
-
-        </CardContent>
-      </Card>
-    ))}
-  </div>
-)}
       {/* SUBMISSIONS */}
       {page === "submissions" && (
         <div className="grid gap-3">
           {submissions.map(s => (
             <Card key={s.id}>
               <CardContent className="p-3">
-                <p>User ID: {s.user_id}</p>
+                <p>User: {s.user_id}</p>
                 <p>Task: {s.task_name}</p>
 
                 {s.image_url && (
                   <a href={s.image_url} target="_blank">View SS</a>
                 )}
 
-                <p>{s.status}</p>
-
                 <Button onClick={() => handleSubmission(s.id, "approved")}>
                   Approve
                 </Button>
-
                 <Button onClick={() => handleSubmission(s.id, "rejected")}>
                   Reject
                 </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* ECOMMERCE */}
+      {page === "manage-ecom" && (
+        <div className="grid gap-3">
+          {tasks.filter(t => t.subtype === "ecommerce").map(t => (
+            <Card key={t.id}>
+              <CardContent className="p-3">
+                <p>{t.title}</p>
+                {t.logo && <img src={t.logo} className="w-12" />}
+
+                <Button onClick={() => {
+                  setForm(t);
+                  setEditingId(t.id);
+                  setPage("create");
+                }}>Edit</Button>
+
+                <Button onClick={async () => {
+                  await supabase.from("tasks").delete().eq("id", t.id);
+                  load();
+                }}>Delete</Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* OTHER */}
+      {page === "manage-other" && (
+        <div className="grid gap-3">
+          {tasks.filter(t => t.subtype !== "ecommerce").map(t => (
+            <Card key={t.id}>
+              <CardContent className="p-3">
+                <p>{t.title}</p>
+
+                <Button onClick={() => {
+                  setForm(t);
+                  setEditingId(t.id);
+                  setPage("create");
+                }}>Edit</Button>
+
+                <Button onClick={async () => {
+                  await supabase.from("tasks").delete().eq("id", t.id);
+                  load();
+                }}>Delete</Button>
               </CardContent>
             </Card>
           ))}
@@ -339,7 +315,7 @@ export default function AdminPanel() {
           {withdrawals.map(w => (
             <Card key={w.id}>
               <CardContent className="p-3">
-                <p>User ID: {w.user_id}</p>
+                <p>User: {w.user_id}</p>
                 <p>₹{w.amount}</p>
                 <p>{w.status}</p>
               </CardContent>
@@ -351,55 +327,3 @@ export default function AdminPanel() {
     </div>
   );
 }
-{/* ECOMMERCE */}
-{page === "manage-ecom" && (
-  <div className="grid gap-3">
-    {tasks.filter(t => t.subtype === "ecommerce").map(t => (
-      <Card key={t.id}>
-        <CardContent className="p-3">
-
-          <p>{t.title}</p>
-          {t.logo && <img src={t.logo} className="w-12" />}
-
-          <Button onClick={() => {
-            setForm(t);
-            setEditingId(t.id);
-            setPage("create");
-          }}>Edit</Button>
-
-          <Button onClick={async () => {
-            await supabase.from("tasks").delete().eq("id", t.id);
-            load();
-          }}>Delete</Button>
-
-        </CardContent>
-      </Card>
-    ))}
-  </div>
-)}
-
-{/* OTHER TASKS */}
-{page === "manage-other" && (
-  <div className="grid gap-3">
-    {tasks.filter(t => t.subtype !== "ecommerce").map(t => (
-      <Card key={t.id}>
-        <CardContent className="p-3">
-
-          <p>{t.title}</p>
-
-          <Button onClick={() => {
-            setForm(t);
-            setEditingId(t.id);
-            setPage("create");
-          }}>Edit</Button>
-
-          <Button onClick={async () => {
-            await supabase.from("tasks").delete().eq("id", t.id);
-            load();
-          }}>Delete</Button>
-
-        </CardContent>
-      </Card>
-    ))}
-  </div>
-)}
