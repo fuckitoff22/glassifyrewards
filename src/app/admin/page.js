@@ -351,6 +351,7 @@ export default function AdminPanel() {
     </div>
   );
 }
+{/* ECOMMERCE */}
 {page === "manage-ecom" && (
   <div className="grid gap-3">
     {tasks.filter(t => t.subtype === "ecommerce").map(t => (
@@ -376,6 +377,8 @@ export default function AdminPanel() {
     ))}
   </div>
 )}
+
+{/* OTHER TASKS */}
 {page === "manage-other" && (
   <div className="grid gap-3">
     {tasks.filter(t => t.subtype !== "ecommerce").map(t => (
