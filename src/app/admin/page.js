@@ -310,20 +310,59 @@ export default function AdminPanel() {
       )}
 
       {/* WITHDRAW */}
-      {page === "payoff" && (
-        <div className="grid gap-3">
-          {withdrawals.map(w => (
-            <Card key={w.id}>
-              <CardContent className="p-3">
-                <p>User: {w.user_id}</p>
-                <p>₹{w.amount}</p>
-                <p>{w.status}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+    {page === "payoff" && (
+  <div className="grid gap-3">
+    {withdrawals.length === 0 && <p>No withdrawals</p>}
 
-    </div>
-  );
-}
+    {withdrawals.map(w => (
+      <Card key={w.id}>
+        <CardContent className="p-3 space-y-2">
+
+          <p>User: {w.user_id}</p>
+          <p>Amount: ₹{w.amount}</p>
+          <p>Status: {w.status}</p>
+
+          {/* APPROVE */}
+          <Button onClick={async () => {
+            await supabase
+              .from("withdrawals")
+              .update({ status: "approved" })
+              .eq("id", w.id);
+
+            load();
+          }}>
+            Approve
+          </Button>
+
+          {/* REJECT */}
+          <Button onClick={async () => {
+            const { data: user } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", w.user_id)
+              .single();
+
+            if (user) {
+              await supabase
+                .from("profiles")
+                .update({
+                  wallet: (user.wallet || 0) + w.amount
+                })
+                .eq("id", w.user_id);
+            }
+
+            await supabase
+              .from("withdrawals")
+              .update({ status: "rejected" })
+              .eq("id", w.id);
+
+            load();
+          }}>
+            Reject
+          </Button>
+
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+)}
