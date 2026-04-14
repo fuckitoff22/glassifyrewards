@@ -154,6 +154,76 @@ export default function AdminPanel() {
     ))}
   </div>
 )}
+{/* ECOMMERCE TASKS */}
+{page === "manage-ecom" && (
+  <div className="grid gap-3">
+    {tasks.filter(t => t.subtype === "ecommerce").map(t => (
+      <Card key={t.id}>
+        <CardContent className="p-3 space-y-2">
+
+          <p><b>{t.title}</b></p>
+          <p>{t.link}</p>
+          <p>Reward: ₹{t.reward}</p>
+
+          {t.logo && (
+            <img src={t.logo} alt="logo" className="w-16 h-16 object-contain" />
+          )}
+
+          {/* EDIT */}
+          <Button onClick={() => {
+            setForm(t);
+            setEditingId(t.id);
+            setPage("create");
+          }}>
+            Edit
+          </Button>
+
+          {/* DELETE */}
+          <Button onClick={async () => {
+            await supabase.from("tasks").delete().eq("id", t.id);
+            load();
+          }}>
+            Delete
+          </Button>
+
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+)}
+{/* OTHER TASKS */}
+{page === "manage-other" && (
+  <div className="grid gap-3">
+    {tasks.filter(t => t.subtype !== "ecommerce").map(t => (
+      <Card key={t.id}>
+        <CardContent className="p-3 space-y-2">
+
+          <p><b>{t.title}</b></p>
+          <p>{t.link}</p>
+          <p>Reward: ₹{t.reward}</p>
+
+          {/* EDIT */}
+          <Button onClick={() => {
+            setForm(t);
+            setEditingId(t.id);
+            setPage("create");
+          }}>
+            Edit
+          </Button>
+
+          {/* DELETE */}
+          <Button onClick={async () => {
+            await supabase.from("tasks").delete().eq("id", t.id);
+            load();
+          }}>
+            Delete
+          </Button>
+
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+)}
   // ================= SUBMISSIONS =================
 const handleSubmission = async (id, status) => {
   const { data: sub } = await supabase
@@ -213,37 +283,66 @@ const handleSubmission = async (id, status) => {
   load();
 };
   // ================= WITHDRAW =================
-  const handleWithdraw = async (id, status) => {
-    const { data: req } = await supabase
-      .from("withdrawals")
-      .select("*")
-      .eq("id", id)
-      .single();
+ {/* WITHDRAW */}
+{page === "payoff" && (
+  <div className="grid gap-3">
 
-    if (!req) return;
+    {withdrawals.length === 0 && (
+      <p>No withdrawal requests</p>
+    )}
 
-    if (status === "rejected") {
-      const { data: user } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("email", req.user)
-        .single();
+    {withdrawals.map(w => (
+      <Card key={w.id}>
+        <CardContent className="p-3 space-y-2">
 
-      await supabase
-        .from("profiles")
-        .update({
-          wallet: (user.wallet || 0) + req.amount
-        })
-        .eq("email", req.user);
-    }
+          <p><b>User:</b> {w.user}</p>
+          <p><b>Amount:</b> ₹{w.amount}</p>
+          <p><b>Status:</b> {w.status}</p>
 
-    await supabase
-      .from("withdrawals")
-      .update({ status })
-      .eq("id", id);
+          {/* APPROVE */}
+          <Button onClick={async () => {
+            const { data: user } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("email", w.user)
+              .single();
 
-    load();
-  };
+            if (user) {
+              await supabase
+                .from("profiles")
+                .update({
+                  wallet: (user.wallet || 0) - w.amount
+                })
+                .eq("email", w.user);
+            }
+
+            await supabase
+              .from("withdrawals")
+              .update({ status: "approved" })
+              .eq("id", w.id);
+
+            load();
+          }}>
+            Approve
+          </Button>
+
+          {/* REJECT */}
+          <Button onClick={async () => {
+            await supabase
+              .from("withdrawals")
+              .update({ status: "rejected" })
+              .eq("id", w.id);
+
+            load();
+          }}>
+            Reject
+          </Button>
+
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+)}
 
   return (
     <div className="min-h-screen p-4 bg-white text-black">
