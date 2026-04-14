@@ -30,6 +30,7 @@ export default function AdminPanel() {
     }
   }, []);
 
+  
   // ================= LOAD =================
   const load = async () => {
     const { data: t } = await supabase.from("tasks").select("*");
@@ -86,8 +87,75 @@ export default function AdminPanel() {
     load();
   };
 
+  {/* USERS */}
+{page === "users" && (
+  <div className="grid gap-3">
+    {users.map((u) => (
+      <Card key={u.id}>
+        <CardContent className="p-3 space-y-2">
+
+          <p><b>Email:</b> {u.email}</p>
+          <p><b>User ID:</b> {u.id}</p>
+          <p><b>Wallet:</b> ₹{u.wallet || 0}</p>
+
+          {/* UPDATE BALANCE */}
+          <Button
+            onClick={async () => {
+              const amount = prompt("Enter amount to add:");
+              if (!amount) return;
+
+              await supabase
+                .from("profiles")
+                .update({
+                  wallet: (u.wallet || 0) + Number(amount)
+                })
+                .eq("id", u.id);
+
+              load();
+            }}
+          >
+            Add Balance
+          </Button>
+
+          {/* BAN TOGGLE */}
+          <Button
+            onClick={async () => {
+              await supabase
+                .from("profiles")
+                .update({
+                  is_banned: !u.is_banned
+                })
+                .eq("id", u.id);
+
+              load();
+            }}
+          >
+            {u.is_banned ? "Unban" : "Ban"}
+          </Button>
+
+          {/* SUSPEND TOGGLE */}
+          <Button
+            onClick={async () => {
+              await supabase
+                .from("profiles")
+                .update({
+                  is_suspended: !u.is_suspended
+                })
+                .eq("id", u.id);
+
+              load();
+            }}
+          >
+            {u.is_suspended ? "Unsuspend" : "Suspend"}
+          </Button>
+
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+)}
   // ================= SUBMISSIONS =================
- const handleSubmission = async (id, status) => {
+const handleSubmission = async (id, status) => {
   const { data: sub } = await supabase
     .from("submissions")
     .select("*")
@@ -96,8 +164,11 @@ export default function AdminPanel() {
 
   if (!sub) return;
 
-  // ✅ ONLY reward on approve
+  const userEmail = sub.user || sub.email;
+
+  // ================= APPROVE =================
   if (status === "approved") {
+    // 🔥 get reward from task
     const { data: task } = await supabase
       .from("tasks")
       .select("reward")
@@ -107,7 +178,7 @@ export default function AdminPanel() {
     const { data: user } = await supabase
       .from("profiles")
       .select("*")
-      .eq("email", sub.user || sub.email)
+      .eq("email", userEmail)
       .single();
 
     if (user) {
@@ -116,19 +187,31 @@ export default function AdminPanel() {
         .update({
           wallet: (user.wallet || 0) + (task?.reward || 0)
         })
-        .eq("email", user.email);
+        .eq("email", userEmail);
     }
   }
 
-  // ✅ ONLY update status (NO image delete)
+  // ================= REJECT =================
+  if (status === "rejected") {
+    // 🔥 set 30 min cooldown
+    const cooldownTime = new Date(Date.now() + 30 * 60 * 1000);
+
+    await supabase
+      .from("profiles")
+      .update({
+        cooldown_until: cooldownTime.toISOString()
+      })
+      .eq("email", userEmail);
+  }
+
+  // ================= DELETE SUBMISSION =================
   await supabase
     .from("submissions")
-    .update({ status })
+    .delete()
     .eq("id", id);
 
   load();
 };
-
   // ================= WITHDRAW =================
   const handleWithdraw = async (id, status) => {
     const { data: req } = await supabase
