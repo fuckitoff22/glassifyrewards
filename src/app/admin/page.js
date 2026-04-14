@@ -87,53 +87,47 @@ export default function AdminPanel() {
   };
 
   // ================= SUBMISSIONS =================
-  const handleSubmission = async (id, status) => {
-    const { data: sub } = await supabase
-      .from("submissions")
-      .select("*")
-      .eq("id", id)
+ const handleSubmission = async (id, status) => {
+  const { data: sub } = await supabase
+    .from("submissions")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (!sub) return;
+
+  // ✅ ONLY reward on approve
+  if (status === "approved") {
+    const { data: task } = await supabase
+      .from("tasks")
+      .select("reward")
+      .eq("id", sub.taskId)
       .single();
 
-    if (!sub) return;
+    const { data: user } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("email", sub.user || sub.email)
+      .single();
 
-    if (status === "approved") {
-      // 🔥 GET TASK REWARD
-      const { data: task } = await supabase
-        .from("tasks")
-        .select("reward")
-        .eq("id", sub.taskId)
-        .single();
-
-      const { data: user } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("email", sub.user)
-        .single();
-
+    if (user) {
       await supabase
         .from("profiles")
         .update({
           wallet: (user.wallet || 0) + (task?.reward || 0)
         })
-        .eq("email", sub.user);
+        .eq("email", user.email);
     }
+  }
 
-    // 🔥 UPDATE STATUS
-    await supabase
-      .from("submissions")
-      .update({ status })
-      .eq("id", id);
+  // ✅ ONLY update status (NO image delete)
+  await supabase
+    .from("submissions")
+    .update({ status })
+    .eq("id", id);
 
-    // 🔥 REMOVE SCREENSHOT
-    if (sub.img) {
-      await supabase
-        .from("submissions")
-        .update({ img: null })
-        .eq("id", id);
-    }
-
-    load();
-  };
+  load();
+};
 
   // ================= WITHDRAW =================
   const handleWithdraw = async (id, status) => {
@@ -264,8 +258,15 @@ export default function AdminPanel() {
         <div className="grid gap-3">
           {submissions.map(s => (
             <Card key={s.id}><CardContent className="p-3">
-              <p>{s.user}</p>
-              {s.img && <a href={s.img} target="_blank">View SS</a>}
+             <p>{s.user || s.email || "No User"}</p>
+
+{s.img ? (
+  <a href={s.img} target="_blank">View SS</a>
+) : s.screenshot ? (
+  <a href={s.screenshot} target="_blank">View SS</a>
+) : (
+  <p>No Screenshot</p>
+)}
               <p>{s.status}</p>
 
               <Button onClick={() => handleSubmission(s.id, "approved")}>Approve</Button>
