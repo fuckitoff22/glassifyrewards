@@ -193,7 +193,7 @@ export default function AdminPanel() {
     }}
   />
 )}
-              >
+              
                 <option value="ecommerce">Ecommerce</option>
                 <option value="general">General</option>
               </select>
