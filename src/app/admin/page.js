@@ -154,58 +154,77 @@ export default function AdminPanel() {
       )}
 
       {/* CREATE TASK */}
-      {page === "create" && (
-        <Card className="max-w-2xl mx-auto">
-          <CardContent className="p-6 space-y-3">
+     {page === "create" && (
+  <Card className="max-w-2xl mx-auto">
+    <CardContent className="p-6 space-y-3">
 
-            <input placeholder="Title" value={form.title}
-              onChange={e => setForm({ ...form, title: e.target.value })} />
+      <input
+        placeholder="Title"
+        value={form.title}
+        onChange={e => setForm({ ...form, title: e.target.value })}
+      />
 
-            <input placeholder="Link" value={form.link}
-              onChange={e => setForm({ ...form, link: e.target.value })} />
+      <input
+        placeholder="Link"
+        value={form.link}
+        onChange={e => setForm({ ...form, link: e.target.value })}
+      />
 
-            <input placeholder="Reward" value={form.reward}
-              onChange={e => setForm({ ...form, reward: e.target.value })} />
+      <input
+        placeholder="Reward"
+        value={form.reward}
+        onChange={e => setForm({ ...form, reward: e.target.value })}
+      />
 
-            <select
-              value={form.type}
-              onChange={(e) => {
-                const value = e.target.value;
-                setForm({
-                  ...form,
-                  type: value,
-                  subtype: value === "affiliate" ? "ecommerce" : ""
-                });
-              }}
-            >
-              <option value="normal">Normal</option>
-              <option value="affiliate">Affiliate</option>
-            </select>
+      {/* TYPE SELECT */}
+      <select
+        value={form.type}
+        onChange={(e) => {
+          const value = e.target.value;
+          setForm({
+            ...form,
+            type: value,
+            subtype: value === "affiliate" ? "ecommerce" : ""
+          });
+        }}
+      >
+        <option value="normal">Normal</option>
+        <option value="affiliate">Affiliate</option>
+      </select>
 
-          {form.type === "affiliate" && form.subtype === "ecommerce" && (
-  <input
-    type="file"
-    onChange={(e) => {
-      const reader = new FileReader();
-      reader.onload = () =>
-        setForm(prev => ({ ...prev, logo: reader.result }));
-      reader.readAsDataURL(e.target.files[0]);
-    }}
-  />
-)}
-              
-                <option value="ecommerce">Ecommerce</option>
-                <option value="general">General</option>
-              </select>
-            )}
-
-            <Button onClick={saveTask}>
-              {editingId ? "Update" : "Create"}
-            </Button>
-
-          </CardContent>
-        </Card>
+      {/* SUBTYPE SELECT */}
+      {form.type === "affiliate" && (
+        <select
+          value={form.subtype}
+          onChange={(e) =>
+            setForm({ ...form, subtype: e.target.value })
+          }
+        >
+          <option value="ecommerce">Ecommerce</option>
+          <option value="general">General</option>
+        </select>
       )}
+
+      {/* FILE UPLOAD */}
+      {form.type === "affiliate" && form.subtype === "ecommerce" && (
+        <input
+          type="file"
+          onChange={(e) => {
+            const reader = new FileReader();
+            reader.onload = () =>
+              setForm(prev => ({ ...prev, logo: reader.result }));
+            reader.readAsDataURL(e.target.files[0]);
+          }}
+        />
+      )}
+
+      <Button onClick={saveTask}>
+        {editingId ? "Update" : "Create"}
+      </Button>
+
+    </CardContent>
+  </Card>
+)}
 
       {/* USERS */}
      {page === "users" && (
