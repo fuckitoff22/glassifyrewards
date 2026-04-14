@@ -49,33 +49,34 @@ export default function AdminPanel() {
   }, []);
 
   // ================= TASK =================
-  const saveTask = async () => {
-    if (!form.title) return;
+ const saveTask = async () => {
+  if (!form.title) return alert("Title required");
 
-    if (editingId) {
-      await supabase.from("tasks").update({
-        ...form,
-        reward: Number(form.reward)
-      }).eq("id", editingId);
-    } else {
-      await supabase.from("tasks").insert([{
-        ...form,
-        reward: Number(form.reward)
-      }]);
-    }
+  const { error } = await supabase.from("tasks").insert([{
+    ...form,
+    reward: Number(form.reward)
+  }]);
 
-    setEditingId(null);
-    setForm({
-      title: "",
-      link: "",
-      reward: "",
-      type: "normal",
-      subtype: "",
-      logo: null
-    });
+  console.log("TASK ERROR:", error);
 
-    load();
-  };
+  if (error) {
+    alert("Task failed ❌");
+    return;
+  }
+
+  alert("Task created ✅");
+
+  setForm({
+    title: "",
+    link: "",
+    reward: "",
+    type: "normal",
+    subtype: "",
+    logo: null
+  });
+
+  load();
+};
 
   // ================= SUBMISSIONS =================
   const handleSubmission = async (id, status) => {
@@ -181,12 +182,17 @@ export default function AdminPanel() {
               <option value="affiliate">Affiliate</option>
             </select>
 
-            {form.type === "affiliate" && (
-              <select
-                value={form.subtype}
-                onChange={(e) =>
-                  setForm({ ...form, subtype: e.target.value })
-                }
+          {form.type === "affiliate" && form.subtype === "ecommerce" && (
+  <input
+    type="file"
+    onChange={(e) => {
+      const reader = new FileReader();
+      reader.onload = () =>
+        setForm(prev => ({ ...prev, logo: reader.result }));
+      reader.readAsDataURL(e.target.files[0]);
+    }}
+  />
+)}
               >
                 <option value="ecommerce">Ecommerce</option>
                 <option value="general">General</option>
@@ -202,19 +208,84 @@ export default function AdminPanel() {
       )}
 
       {/* USERS */}
-      {page === "users" && (
-        <div className="grid gap-3">
-          {users.map(u => (
-            <Card key={u.id}>
-              <CardContent className="p-3">
-                <p>{u.email}</p>
-                <p>Wallet: ₹{u.wallet || 0}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+     {page === "users" && (
+  <div className="grid gap-3">
+    {users.map(u => (
+      <Card key={u.id}>
+        <CardContent className="p-3 space-y-2">
 
+          <p>{u.email}</p>
+          <p>Wallet: ₹{u.wallet || 0}</p>
+
+          {/* ADD BALANCE */}
+          <Button onClick={async () => {
+            const amt = prompt("Enter amount");
+            if (!amt) return;
+
+            await supabase
+              .from("profiles")
+              .update({
+                wallet: (u.wallet || 0) + Number(amt)
+              })
+              .eq("id", u.id);
+
+            load();
+          }}>
+            Add Balance
+          </Button>
+
+          {/* BAN */}
+          <Button onClick={async () => {
+            await supabase
+              .from("profiles")
+              .update({
+                is_banned: !u.is_banned
+              })
+              .eq("id", u.id);
+
+            load();
+          }}>
+            {u.is_banned ? "Unban" : "Ban"}
+          </Button>
+
+          {/* SUSPEND WITH TIMER */}
+          <Button onClick={async () => {
+            const mins = prompt("Suspend minutes?");
+            if (!mins) return;
+
+            const until = new Date(Date.now() + mins * 60000);
+
+            await supabase
+              .from("profiles")
+              .update({
+                suspended_until: until.toISOString()
+              })
+              .eq("id", u.id);
+
+            load();
+          }}>
+            Suspend
+          </Button>
+
+          {/* UNSUSPEND */}
+          <Button onClick={async () => {
+            await supabase
+              .from("profiles")
+              .update({
+                suspended_until: null
+              })
+              .eq("id", u.id);
+
+            load();
+          }}>
+            Unsuspend
+          </Button>
+
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+)}
       {/* SUBMISSIONS */}
       {page === "submissions" && (
         <div className="grid gap-3">
@@ -261,3 +332,52 @@ export default function AdminPanel() {
     </div>
   );
 }
+{page === "manage-ecom" && (
+  <div className="grid gap-3">
+    {tasks.filter(t => t.subtype === "ecommerce").map(t => (
+      <Card key={t.id}>
+        <CardContent className="p-3">
+
+          <p>{t.title}</p>
+          {t.logo && <img src={t.logo} className="w-12" />}
+
+          <Button onClick={() => {
+            setForm(t);
+            setEditingId(t.id);
+            setPage("create");
+          }}>Edit</Button>
+
+          <Button onClick={async () => {
+            await supabase.from("tasks").delete().eq("id", t.id);
+            load();
+          }}>Delete</Button>
+
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+)}
+{page === "manage-other" && (
+  <div className="grid gap-3">
+    {tasks.filter(t => t.subtype !== "ecommerce").map(t => (
+      <Card key={t.id}>
+        <CardContent className="p-3">
+
+          <p>{t.title}</p>
+
+          <Button onClick={() => {
+            setForm(t);
+            setEditingId(t.id);
+            setPage("create");
+          }}>Edit</Button>
+
+          <Button onClick={async () => {
+            await supabase.from("tasks").delete().eq("id", t.id);
+            load();
+          }}>Delete</Button>
+
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+)}
