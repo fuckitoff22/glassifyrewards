@@ -32,12 +32,10 @@ export default function AdminPanel() {
 
   // ================= LOAD =================
   const load = async () => {
-    const { data: t, error: tErr } = await supabase.from("tasks").select("*");
-    const { data: s, error: sErr } = await supabase.from("submissions").select("*");
-    const { data: u, error: uErr } = await supabase.from("profiles").select("*");
-    const { data: w, error: wErr } = await supabase.from("withdrawals").select("*");
-
-    console.log({ tErr, sErr, uErr, wErr });
+    const { data: t } = await supabase.from("tasks").select("*");
+    const { data: s } = await supabase.from("submissions").select("*");
+    const { data: u } = await supabase.from("profiles").select("*");
+    const { data: w } = await supabase.from("withdrawals").select("*");
 
     setTasks(t || []);
     setSubmissions(s || []);
@@ -83,12 +81,6 @@ export default function AdminPanel() {
     load();
   };
 
-  const editTask = (t) => {
-    setForm(t);
-    setEditingId(t.id);
-    setPage("create");
-  };
-
   const deleteTask = async (id) => {
     await supabase.from("tasks").delete().eq("id", id);
     load();
@@ -102,7 +94,16 @@ export default function AdminPanel() {
       .eq("id", id)
       .single();
 
+    if (!sub) return;
+
     if (status === "approved") {
+      // 🔥 GET TASK REWARD
+      const { data: task } = await supabase
+        .from("tasks")
+        .select("reward")
+        .eq("id", sub.taskId)
+        .single();
+
       const { data: user } = await supabase
         .from("profiles")
         .select("*")
@@ -112,15 +113,24 @@ export default function AdminPanel() {
       await supabase
         .from("profiles")
         .update({
-          wallet: (user.wallet || 0) + (sub.reward || 0)
+          wallet: (user.wallet || 0) + (task?.reward || 0)
         })
         .eq("email", sub.user);
     }
 
+    // 🔥 UPDATE STATUS
     await supabase
       .from("submissions")
       .update({ status })
       .eq("id", id);
+
+    // 🔥 REMOVE SCREENSHOT
+    if (sub.img) {
+      await supabase
+        .from("submissions")
+        .update({ img: null })
+        .eq("id", id);
+    }
 
     load();
   };
@@ -132,6 +142,8 @@ export default function AdminPanel() {
       .select("*")
       .eq("id", id)
       .single();
+
+    if (!req) return;
 
     if (status === "rejected") {
       const { data: user } = await supabase
@@ -198,7 +210,6 @@ export default function AdminPanel() {
               onChange={e => setForm({ ...form, reward: e.target.value })}
             />
 
-            {/* FIXED SELECT */}
             <select
               className="w-full p-3 border"
               value={form.type}
